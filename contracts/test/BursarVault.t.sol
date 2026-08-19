@@ -153,3 +153,157 @@ contract BursarVaultTest is Test {
         vault.pay(sessionAllow, vendorOk, 10, inv, ROOT_A, RESP_A, SIGNER);
         assertEq(_snap().vault, pre.vault);
 
+        vm.prank(owner);
+        vault.setPaused(false);
+        _pay(sessionAllow, vendorOk, 10, inv);
+        assertEq(token.balanceOf(vendorOk), 10);
+        console2.log("DID MONEY MOVE after resume? YES 10");
+    }
+
+    function test_expiry_zeroMoved() public {
+        bytes32 inv = _inv(6);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.Expired.selector);
+        vault.registerInvoice(sessionExpired, inv, ROOT_A);
+        Snap memory pre = _snap();
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.Expired.selector);
+        vault.pay(sessionExpired, vendorOk, 10, inv, ROOT_A, RESP_A, SIGNER);
+        assertEq(_snap().vault, pre.vault);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_revoke_zeroMoved() public {
+        bytes32 inv = _inv(7);
+        Snap memory pre = _snap();
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.Revoked.selector);
+        vault.pay(sessionRevoke, vendorOk, 10, inv, ROOT_A, RESP_A, SIGNER);
+        assertEq(_snap().vault, pre.vault);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_unauthorizedCaller_zeroMoved() public {
+        bytes32 inv = _inv(8);
+        _register(sessionAllow, inv, ROOT_A);
+        Snap memory pre = _snap();
+        vm.prank(attacker);
+        vm.expectRevert(BursarVault.NotAgent.selector);
+        vault.pay(sessionAllow, vendorOk, 10, inv, ROOT_A, RESP_A, SIGNER);
+        assertEq(_snap().vault, pre.vault);
+        assertEq(token.balanceOf(attacker), 0);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_sessionIsolation_otherSessionUnaffected() public {
+        bytes32 inv = _inv(9);
+        _register(sessionAllow, inv, ROOT_A);
+        _pay(sessionAllow, vendorOk, 100, inv);
+        (,, uint256 spentAllow,,,) = vault.sessions(sessionAllow);
+        (,, uint256 spentOther,,,) = vault.sessions(sessionOther);
+        assertEq(spentAllow, 100);
+        assertEq(spentOther, 0);
+    }
+
+    function test_crossVaultIsolation_zeroMoved() public {
+        bytes32 inv = _inv(10);
+        _register(sessionAllow, inv, ROOT_A);
+        Snap memory pre = _snap();
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.BadSession.selector);
+        vault2.pay(sessionAllow, vendorOk, 10, inv, ROOT_A, RESP_A, SIGNER);
+        Snap memory post = _snap();
+        assertEq(post.vault, pre.vault);
+        assertEq(post.vault2, pre.vault2);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_duplicateInvoiceHash_replay_zeroMoved() public {
+        bytes32 inv = _inv(11);
+        _register(sessionAllow, inv, ROOT_A);
+        _pay(sessionAllow, vendorOk, 50, inv);
+        Snap memory pre = _snap();
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.DuplicateInvoice.selector);
+        vault.pay(sessionAllow, vendorOk, 50, inv, ROOT_A, RESP_A, SIGNER);
+        assertEq(_snap().vendorOk, pre.vendorOk);
+        console2.log("DID MONEY MOVE on replay? NO");
+    }
+
+    function test_wrongInvoiceHash_notRegistered() public {
+        bytes32 inv = _inv(12);
+        Snap memory pre = _snap();
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.NotRegistered.selector);
+        vault.pay(sessionAllow, vendorOk, 10, inv, ROOT_A, RESP_A, SIGNER);
+        assertEq(_snap().vault, pre.vault);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_wrongStorageRoot_zeroMoved() public {
+        bytes32 inv = _inv(13);
+        _register(sessionAllow, inv, ROOT_A);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.RootMismatch.selector);
+        vault.pay(sessionAllow, vendorOk, 10, inv, bytes32(uint256(0xDEAD)), RESP_A, SIGNER);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_missingEvidence_zeroMoved() public {
+        bytes32 inv = _inv(14);
+        _register(sessionAllow, inv, ROOT_A);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.MissingEvidence.selector);
+        vault.pay(sessionAllow, vendorOk, 10, inv, ROOT_A, bytes32(0), SIGNER);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.MissingEvidence.selector);
+        vault.pay(sessionAllow, vendorOk, 10, inv, ROOT_A, RESP_A, address(0));
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_malformedInputs() public {
+        bytes32 inv = _inv(15);
+        _register(sessionAllow, inv, ROOT_A);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.Zero.selector);
+        vault.pay(sessionAllow, vendorOk, 0, inv, ROOT_A, RESP_A, SIGNER);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.BadRecipient.selector);
+        vault.pay(sessionAllow, address(0), 1, inv, ROOT_A, RESP_A, SIGNER);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.BadRecipient.selector);
+        vault.pay(sessionAllow, address(vault), 1, inv, ROOT_A, RESP_A, SIGNER);
+        vm.prank(owner);
+        vm.expectRevert(BursarVault.Zero.selector);
+        vault.createSession(bytes32(0), agent, 1, uint64(block.timestamp + 1));
+        vm.prank(owner);
+        vm.expectRevert(BursarVault.SessionExists.selector);
+        vault.createSession(sessionAllow, agent, 1, uint64(block.timestamp + 1));
+    }
+
+    function test_ownerOnly_agentCannotChangePolicyOrWithdraw() public {
+        uint256 preVault = token.balanceOf(address(vault));
+        vm.startPrank(agent);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.setVendor(vendorBad, true);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.setPaused(true);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.setBands(1, 2);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.setVendorCap(vendorOk, 1);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.revokeSession(sessionAllow);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.createSession(keccak256("x"), agent, 1, uint64(block.timestamp + 10));
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.withdraw(agent, 1);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.ownerPay(vendorOk, 1, _inv(99), ROOT_A, RESP_A, SIGNER);
+        vm.expectRevert(BursarVault.NotOwner.selector);
+        vault.transferOwnership(agent);
+        vm.stopPrank();
+        assertEq(token.balanceOf(address(vault)), preVault);
+        assertEq(token.balanceOf(agent), 0);
+        console2.log("DID MONEY MOVE? NO");
+    }
