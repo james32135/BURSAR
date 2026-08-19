@@ -112,3 +112,95 @@ contract BursarVault {
         _;
         _locked = 1;
     }
+
+    constructor(address token_, address owner_, uint256 band0Max_, uint256 band1Max_) {
+        if (token_ == address(0) || owner_ == address(0)) revert Zero();
+        if (band1Max_ < band0Max_) revert Zero();
+        token = IERC20(token_);
+        owner = owner_;
+        band0Max = band0Max_;
+        band1Max = band1Max_;
+        policyVersion = 1;
+        emit OwnershipTransferred(address(0), owner_);
+        emit BandsSet(band0Max_, band1Max_, 1);
+    }
+
+    function transferOwnership(address next) external onlyOwner {
+        if (next == address(0)) revert Zero();
+        emit OwnershipTransferred(owner, next);
+        owner = next;
+    }
+
+    function setPaused(bool v) external onlyOwner {
+        paused = v;
+        emit PausedSet(v);
+    }
+
+    function setVendor(address vendor, bool allowed) external onlyOwner {
+        if (vendor == address(0) || vendor == address(this)) revert BadRecipient();
+        vendorAllowed[vendor] = allowed;
+        emit VendorSet(vendor, allowed);
+    }
+
+    function setVendorCap(address vendor, uint256 cap) external onlyOwner {
+        if (vendor == address(0)) revert Zero();
+        vendorCap[vendor] = cap;
+        emit VendorCapSet(vendor, cap);
+        policyVersion += 1;
+    }
+
+    function setBands(uint256 band0Max_, uint256 band1Max_) external onlyOwner {
+        if (band1Max_ < band0Max_) revert Zero();
+        band0Max = band0Max_;
+        band1Max = band1Max_;
+        policyVersion += 1;
+        emit BandsSet(band0Max_, band1Max_, policyVersion);
+    }
+
+    function createSession(bytes32 id, address agent, uint256 cap, uint64 expiry) external onlyOwner {
+        if (id == bytes32(0) || agent == address(0) || cap == 0) revert Zero();
+        if (sessions[id].exists) revert SessionExists();
+        sessions[id] = Session({
+            agent: agent,
+            cap: cap,
+            spent: 0,
+            expiry: expiry,
+            revoked: false,
+            exists: true
+        });
+        emit SessionCreated(id, agent, cap, expiry);
+    }
+
+    function revokeSession(bytes32 id) external onlyOwner {
+        Session storage s = sessions[id];
+        if (!s.exists) revert BadSession();
+        s.revoked = true;
+        emit SessionRevoked(id);
+    }
+
+    function registerInvoice(bytes32 sessionId, bytes32 invoiceHash, bytes32 storageRoot) external {
+        _requireLiveAgent(sessionId);
+        _register(invoiceHash, storageRoot);
+    }
+
+    function registerInvoiceOwner(bytes32 invoiceHash, bytes32 storageRoot) external onlyOwner {
+        _register(invoiceHash, storageRoot);
+    }
+
+    /// @notice Band-0 session payment. Agent-only. Fail-closed on policy.
+    function pay(
+        bytes32 sessionId,
+        address vendor,
+        uint256 amount,
+        bytes32 invoiceHash,
+        bytes32 storageRoot,
+        bytes32 responseHash,
+        address recoveredSigner
+    ) external nonReentrant {
+        if (paused) revert PausedVault();
+        Session storage s = _requireLiveAgent(sessionId);
+        if (amount > band0Max) revert OverBand();
+        if (s.spent + amount < s.spent || s.spent + amount > s.cap) revert OverCap();
+        s.spent += amount;
+        _executePay(sessionId, vendor, amount, invoiceHash, storageRoot, responseHash, recoveredSigner);
+    }
