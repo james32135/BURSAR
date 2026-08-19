@@ -1,0 +1,67 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+**/data/.userb-token
+
+# local state
+backend/data/
+backend/dist/
+apps/web/dist/
+apps/web/node_modules/
+backend/node_modules/
+packages/**/node_modules/
+spikes/node_modules/
+spikes/runtime/node_modules/
+spikes/runtime/package-lock.json
+node_modules/
+
+# foundry
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+contracts/lib/
+
+# spikes, invoices, evidence, research dumps
+spikes/
+deployments/.cache
+deployments-spike.json
+*.pdf
+*.pdf.bak
+*.enc
+apps/web/public/*.pdf
+apps/web/public/test-invoices/
+
+# docs that are not the product README
+*.md
+!README.md
+IMPLEMENTATION_PLAN.md
+ENVIRONMENT.md
+RESOURCES.md
+history.md
+FINAL_APOLLO_GRADE_FLAGSHIP.md
+01_0G_COMPLETE_TECHNICAL_INTELLIGENCE.md
+02_0G_GITHUB_X_AND_DEVELOPER_ECOSYSTEM.md
+03_COMPETITORS_WINNERS_AND_CODE_REVERSE_ENGINEERING.md
+SPIKE_LOG.md
+spikes/SPIKE_LOG.md
+
+# local token helpers, evidence, binaries
+backend/scripts/reissue-*.ts
+*.png
+*.webp
+*.zip
+
+# tooling
+_make_history.py
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
