@@ -307,3 +307,148 @@ contract BursarVaultTest is Test {
         assertEq(token.balanceOf(agent), 0);
         console2.log("DID MONEY MOVE? NO");
     }
+
+    function test_ownerPay_allowedAndDuplicateProtected() public {
+        bytes32 inv = _inv(16);
+        vm.prank(owner);
+        vault.registerInvoiceOwner(inv, ROOT_A);
+        Snap memory pre = _snap();
+        vm.prank(owner);
+        vault.ownerPay(remittance, 3703, inv, ROOT_A, RESP_A, SIGNER);
+        Snap memory post = _snap();
+        assertEq(post.remittance - pre.remittance, 3703);
+        assertEq(pre.vault - post.vault, 3703);
+        console2.log("DID MONEY MOVE? YES 3703 ownerPay");
+        vm.prank(owner);
+        vm.expectRevert(BursarVault.DuplicateInvoice.selector);
+        vault.ownerPay(remittance, 3703, inv, ROOT_A, RESP_A, SIGNER);
+        assertEq(token.balanceOf(remittance), 3703);
+        console2.log("DID MONEY MOVE on owner replay? NO");
+    }
+
+    function test_ownerPay_wrongVendor() public {
+        bytes32 inv = _inv(17);
+        vm.prank(owner);
+        vault.registerInvoiceOwner(inv, ROOT_A);
+        vm.prank(owner);
+        vm.expectRevert(BursarVault.NotVendor.selector);
+        vault.ownerPay(vendorBad, 1, inv, ROOT_A, RESP_A, SIGNER);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_withdraw_ownerOnly_movesMoney() public {
+        Snap memory pre = _snap();
+        vm.prank(owner);
+        vault.withdraw(owner, 111);
+        Snap memory post = _snap();
+        assertEq(post.owner - pre.owner, 111);
+        assertEq(pre.vault - post.vault, 111);
+        console2.log("DID MONEY MOVE? YES 111 to owner");
+    }
+
+    function test_withdraw_whilePaused_stillWorks_rescue() public {
+        vm.prank(owner);
+        vault.setPaused(true);
+        vm.prank(owner);
+        vault.withdraw(owner, 5);
+        assertEq(token.balanceOf(owner), 5);
+        console2.log("DID MONEY MOVE while paused (owner rescue)? YES 5");
+    }
+
+    function test_wrongToken_rescueRevertsOnSettlementToken() public {
+        vm.prank(owner);
+        vm.expectRevert(BursarVault.WrongToken.selector);
+        vault.rescueToken(address(token), owner, 1);
+    }
+
+    function test_falseReturningToken_payReverts() public {
+        MockERC20FalseReturn bad = new MockERC20FalseReturn();
+        BursarVault v = new BursarVault(address(bad), owner, BAND0, BAND1);
+        bad.mint(address(v), 1000);
+        vm.startPrank(owner);
+        v.setVendor(vendorOk, true);
+        v.createSession(sessionAllow, agent, 100, uint64(block.timestamp + 10));
+        v.registerInvoiceOwner(_inv(1), ROOT_A);
+        vm.stopPrank();
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.TransferFailed.selector);
+        v.pay(sessionAllow, vendorOk, 1, _inv(1), ROOT_A, RESP_A, SIGNER);
+        assertEq(bad.balanceOf(vendorOk), 0);
+        console2.log("DID MONEY MOVE? NO");
+    }
+
+    function test_vendorCap() public {
+        bytes32 inv = _inv(18);
+        _register(sessionAllow, inv, ROOT_A);
+        vm.prank(owner);
+        vault.setVendorCap(vendorOk, 25);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.OverVendorCap.selector);
+        vault.pay(sessionAllow, vendorOk, 26, inv, ROOT_A, RESP_A, SIGNER);
+        _pay(sessionAllow, vendorOk, 25, inv);
+        assertEq(token.balanceOf(vendorOk), 25);
+    }
+
+    function test_bandOf() public view {
+        assertEq(vault.bandOf(0), 0);
+        assertEq(vault.bandOf(BAND0), 0);
+        assertEq(vault.bandOf(BAND0 + 1), 1);
+        assertEq(vault.bandOf(BAND1), 1);
+        assertEq(vault.bandOf(BAND1 + 1), 2);
+    }
+
+    function test_registerConflict() public {
+        bytes32 inv = _inv(19);
+        _register(sessionAllow, inv, ROOT_A);
+        vm.prank(agent);
+        vault.registerInvoice(sessionAllow, inv, ROOT_A); // idempotent
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.InvoiceConflict.selector);
+        vault.registerInvoice(sessionAllow, inv, bytes32(uint256(2)));
+    }
+
+    function test_attackerCannotRegister() public {
+        vm.prank(attacker);
+        vm.expectRevert(BursarVault.NotAgent.selector);
+        vault.registerInvoice(sessionAllow, _inv(20), ROOT_A);
+    }
+
+    function testFuzz_unlistedVendorNeverPaid(address vendor, uint96 amount, bytes32 salt) public {
+        vm.assume(vendor != vendorOk && vendor != remittance && vendor != address(0) && vendor != address(vault));
+        amount = uint96(bound(amount, 1, BAND0));
+        bytes32 inv = keccak256(abi.encode(salt, vendor, amount));
+        _register(sessionAllow, inv, ROOT_A);
+        uint256 pre = token.balanceOf(vendor);
+        uint256 preVault = token.balanceOf(address(vault));
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.NotVendor.selector);
+        vault.pay(sessionAllow, vendor, amount, inv, ROOT_A, RESP_A, SIGNER);
+        assertEq(token.balanceOf(vendor), pre);
+        assertEq(token.balanceOf(address(vault)), preVault);
+    }
+
+    function testFuzz_allowedPayWithinCaps(uint96 amount, bytes32 salt) public {
+        amount = uint96(bound(amount, 1, 1000));
+        bytes32 inv = keccak256(abi.encode(salt, amount, "ok"));
+        _register(sessionAllow, inv, ROOT_A);
+        uint256 preV = token.balanceOf(vendorOk);
+        uint256 preVault = token.balanceOf(address(vault));
+        _pay(sessionAllow, vendorOk, amount, inv);
+        assertEq(token.balanceOf(vendorOk), preV + amount);
+        assertEq(token.balanceOf(address(vault)), preVault - amount);
+        (,, uint256 spent,,,) = vault.sessions(sessionAllow);
+        assertLe(spent, SESSION_CAP);
+    }
+
+    function test_sessionCannotPayAnotherVaultsVendorWithoutLocalAllowlist() public {
+        address onlyV2 = makeAddr("onlyV2");
+        vm.prank(owner);
+        vault2.setVendor(onlyV2, true);
+        bytes32 inv = _inv(21);
+        _register(sessionAllow, inv, ROOT_A);
+        vm.prank(agent);
+        vm.expectRevert(BursarVault.NotVendor.selector);
+        vault.pay(sessionAllow, onlyV2, 1, inv, ROOT_A, RESP_A, SIGNER);
+        console2.log("DID MONEY MOVE? NO");
+    }
+}
