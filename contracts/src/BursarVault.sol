@@ -204,3 +204,108 @@ contract BursarVault {
         s.spent += amount;
         _executePay(sessionId, vendor, amount, invoiceHash, storageRoot, responseHash, recoveredSigner);
     }
+
+    /// @notice Human / owner payment path for Band 1+ (and any allowed amount).
+    /// @dev Still cannot pay a non-vendor, replay an invoice, or skip evidence.
+    function ownerPay(
+        address vendor,
+        uint256 amount,
+        bytes32 invoiceHash,
+        bytes32 storageRoot,
+        bytes32 responseHash,
+        address recoveredSigner
+    ) external onlyOwner nonReentrant {
+        _executePay(bytes32(0), vendor, amount, invoiceHash, storageRoot, responseHash, recoveredSigner);
+    }
+
+    /// @notice Owner rescue of vault USDC.e. Allowed while paused so funds are not trapped.
+    function withdraw(address to, uint256 amount) external onlyOwner nonReentrant {
+        if (to == address(0) || amount == 0) revert Zero();
+        _safeTransfer(to, amount);
+        emit Withdrawn(to, amount);
+    }
+
+    /// @notice Rescue a non-settlement token. Cannot be used to bypass USDC.e policy.
+    function rescueToken(address other, address to, uint256 amount) external onlyOwner nonReentrant {
+        if (other == address(token)) revert WrongToken();
+        if (other == address(0) || to == address(0) || amount == 0) revert Zero();
+        if (!IERC20(other).transfer(to, amount)) revert TransferFailed();
+        emit TokenRescued(other, to, amount);
+    }
+
+    function bandOf(uint256 amount) public view returns (uint8) {
+        if (amount <= band0Max) return 0;
+        if (amount <= band1Max) return 1;
+        return 2;
+    }
+
+    function _requireLiveAgent(bytes32 sessionId) internal view returns (Session storage s) {
+        s = sessions[sessionId];
+        if (!s.exists) revert BadSession();
+        if (msg.sender != s.agent) revert NotAgent();
+        if (s.revoked) revert Revoked();
+        if (block.timestamp >= s.expiry) revert Expired();
+    }
+
+    function _register(bytes32 invoiceHash, bytes32 storageRoot) internal {
+        if (invoiceHash == bytes32(0) || storageRoot == bytes32(0)) revert Zero();
+        Invoice storage inv = invoices[invoiceHash];
+        if (inv.registered) {
+            if (inv.storageRoot != storageRoot) revert InvoiceConflict();
+            return;
+        }
+        inv.registered = true;
+        inv.storageRoot = storageRoot;
+        emit InvoiceRegistered(invoiceHash, storageRoot);
+    }
+
+    function _executePay(
+        bytes32 sessionId,
+        address vendor,
+        uint256 amount,
+        bytes32 invoiceHash,
+        bytes32 storageRoot,
+        bytes32 responseHash,
+        address recoveredSigner
+    ) internal {
+        if (paused) revert PausedVault();
+        if (amount == 0) revert Zero();
+        if (vendor == address(0) || vendor == address(this)) revert BadRecipient();
+        if (!vendorAllowed[vendor]) revert NotVendor();
+        if (invoiceHash == bytes32(0) || storageRoot == bytes32(0) || responseHash == bytes32(0) || recoveredSigner == address(0)) {
+            revert MissingEvidence();
+        }
+        Invoice storage inv = invoices[invoiceHash];
+        if (!inv.registered) revert NotRegistered();
+        if (inv.storageRoot != storageRoot) revert RootMismatch();
+        if (inv.paid || payments[invoiceHash].vendor != address(0)) revert DuplicateInvoice();
+
+        uint256 vcap = vendorCap[vendor];
+        if (vcap != 0) {
+            if (vendorSpent[vendor] + amount < vendorSpent[vendor] || vendorSpent[vendor] + amount > vcap) {
+                revert OverVendorCap();
+            }
+        }
+
+        inv.paid = true;
+        vendorSpent[vendor] += amount;
+        payments[invoiceHash] = PaymentProof({
+            vendor: vendor,
+            amount: amount,
+            storageRoot: storageRoot,
+            responseHash: responseHash,
+            recoveredSigner: recoveredSigner,
+            sessionId: sessionId,
+            paidAt: uint64(block.timestamp),
+            policyVersion: policyVersion
+        });
+
+        _safeTransfer(vendor, amount);
+        emit Paid(sessionId, vendor, invoiceHash, amount, storageRoot, responseHash, recoveredSigner, policyVersion);
+    }
+
+    function _safeTransfer(address to, uint256 amount) internal {
+        (bool ok, bytes memory data) = address(token).call(abi.encodeWithSelector(IERC20.transfer.selector, to, amount));
+        if (!ok || (data.length != 0 && abi.decode(data, (bool)) == false)) revert TransferFailed();
+    }
+}
