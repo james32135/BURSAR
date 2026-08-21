@@ -100,3 +100,78 @@ export async function bindWorkspace(args: { vault: string; signature: string; is
     const ok = Boolean(await factory.isVault(vaultAddr))
     if (!ok) throw new Error('vault was not created by BursarFactory')
   }
+
+  const db = await getDb()
+  const already = await db.query('SELECT id FROM workspaces WHERE vault = $1', [vaultAddr.toLowerCase()])
+  if (already.rows[0]) {
+    throw new Error('vault already bound')
+  }
+
+  const agent = ethers.Wallet.createRandom()
+  const id = ethers.hexlify(randomBytes(16)).slice(2)
+  const sessionId = ethers.id(`bursar:${id}`)
+  const agentToken = ethers.hexlify(randomBytes(32))
+  await db.query(
+    `INSERT INTO workspaces (id, owner, vault, session_id, agent_address, agent_pk_enc, token_hash, demo)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE)`,
+    [
+      id,
+      owner.toLowerCase(),
+      vaultAddr.toLowerCase(),
+      sessionId,
+      agent.address.toLowerCase(),
+      encryptSecret(agent.privateKey),
+      sha256Hex(agentToken),
+    ]
+  )
+  const { ensureAgentGas } = await import('./vault.ts')
+  await ensureAgentGas(agent.privateKey)
+  return {
+    id,
+    owner: owner.toLowerCase(),
+    vault: vaultAddr.toLowerCase(),
+    sessionId,
+    agentAddress: agent.address,
+    agentToken,
+    demo: false,
+    next: ['createSession', 'setVendor', 'fund'],
+  }
+}
+
+export async function workspaceStats(workspaceId: string) {
+  const db = await getDb()
+  const rows = await db.query(
+    `SELECT
+        count(*)::int AS processed,
+        count(*) FILTER (WHERE status = 'paid')::int AS paid,
+        count(*) FILTER (WHERE status = 'blocked')::int AS blocked,
+        count(*) FILTER (WHERE status = 'flagged')::int AS escalated,
+        count(*) FILTER (WHERE status = 'clean')::int AS auto_pay_ready,
+        coalesce(sum(amount_units) FILTER (WHERE status = 'paid'), 0)::text AS routed
+     FROM invoices WHERE workspace_id = $1`,
+    [workspaceId]
+  )
+  const r = rows.rows[0] || {}
+  return {
+    processed: Number(r.processed || 0),
+    paid: Number(r.paid || 0),
+    blocked: Number(r.blocked || 0),
+    escalated: Number(r.escalated || 0),
+    autoPayReady: Number(r.auto_pay_ready || 0),
+    routedUnits: String(r.routed || '0'),
+    policyViolations: Number(r.blocked || 0),
+  }
+}
+
+export function publicWorkspace(ws: Workspace, agentToken?: string) {
+  return {
+    id: ws.id,
+    owner: ws.owner,
+    vault: ws.vault,
+    sessionId: ws.sessionId,
+    agentAddress: ws.agentAddress,
+    demo: ws.demo,
+    createdAt: ws.createdAt,
+    ...(agentToken ? { agentToken } : {}),
+  }
+}
