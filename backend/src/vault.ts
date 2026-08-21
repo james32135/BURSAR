@@ -83,3 +83,57 @@ export async function sessionPay(
     args.responseHash,
     args.recoveredSigner
   )
+  const rec = await waitTx(tx)
+  const postVault = await usdc.balanceOf(ctx.vault)
+  const postVendor = await usdc.balanceOf(args.vendor)
+  const moved = BigInt(postVendor) - BigInt(preVendor)
+  return {
+    hash: rec.hash,
+    explorer: `${config.explorer}/tx/${rec.hash}`,
+    vault: ctx.vault,
+    preVault: preVault.toString(),
+    postVault: postVault.toString(),
+    preVendor: preVendor.toString(),
+    postVendor: postVendor.toString(),
+    moneyMoved: moved.toString(),
+    didMoneyMove: moved === args.amount,
+    status: rec.status,
+  }
+}
+
+export async function onchainInvoice(ctx: VaultCtx, invoiceHash: string) {
+  const row = await getVault(ctx).invoices(invoiceHash)
+  return { registered: Boolean(row.registered), paid: Boolean(row.paid), storageRoot: row.storageRoot }
+}
+
+export async function onchainPayment(ctx: VaultCtx, invoiceHash: string) {
+  return getVault(ctx).payments(invoiceHash)
+}
+
+export async function sessionState(ctx: VaultCtx) {
+  const row = await getVault(ctx).sessions(ctx.sessionId)
+  return {
+    id: ctx.sessionId,
+    agent: row.agent,
+    cap: row.cap.toString(),
+    spent: row.spent.toString(),
+    remaining: (BigInt(row.cap) - BigInt(row.spent)).toString(),
+    expiry: row.expiry.toString(),
+    revoked: Boolean(row.revoked),
+    exists: Boolean(row.exists),
+  }
+}
+
+export async function vaultState(ctx: VaultCtx) {
+  const v = getVault(ctx)
+  const usdc = new ethers.Contract(config.usdc, ERC20_ABI, getProvider())
+  return {
+    vault: ctx.vault,
+    owner: await v.owner(),
+    paused: await v.paused(),
+    band0Max: (await v.band0Max()).toString(),
+    band1Max: (await v.band1Max()).toString(),
+    policyVersion: (await v.policyVersion()).toString(),
+    usdc: (await usdc.balanceOf(ctx.vault)).toString(),
+  }
+}
