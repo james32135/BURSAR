@@ -163,3 +163,173 @@ app.get('/product', async (c) => {
   })
 })
 
+app.post('/workspaces', async (c) => {
+  await ensureDemoWorkspace()
+  const body = await c.req.json<{ vault?: string; signature?: string; issuedAt?: number }>()
+  if (!body.vault || !body.signature || !body.issuedAt) {
+    return c.json({ error: 'vault, signature, issuedAt required' }, 400)
+  }
+  try {
+    const created = await bindWorkspace({
+      vault: body.vault,
+      signature: body.signature,
+      issuedAt: Number(body.issuedAt),
+    })
+    return c.json(created)
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
+  }
+})
+
+app.get('/workspace', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const remittance = '0x1111111111111111111111111111111111111111'
+  const [vs, session, stats, remittanceAllowed] = await Promise.all([
+    vaultState(ws),
+    sessionState(ws),
+    workspaceStats(ws.id),
+    vendorAllowed(ws, remittance),
+  ])
+  return c.json({
+    workspace: publicWorkspace(ws),
+    vaultState: vs,
+    session,
+    remittanceAllowed,
+    stats,
+  })
+})
+
+app.get('/workspace/stats', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  return c.json(await workspaceStats(c.get('ws').id))
+})
+
+app.get('/policy', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const [vs, session] = await Promise.all([vaultState(ws), sessionState(ws)])
+  return c.json({ vault: ws.vault, vaultState: vs, session })
+})
+
+app.get('/queue', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const db = await getDb()
+  const rows = await db.query(
+    `SELECT invoice_hash, status, flags, extracted, vendor, remittance, amount_units, pay_tx, storage_root, flow_tx, tx_seq, go_proof_ok, attestation_ok, recovered_signer, created_at, updated_at
+     FROM invoices WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 50`,
+    [ws.id]
+  )
+  return c.json({ invoices: rows.rows.map((row) => presentInvoice(row)), workspaceId: ws.id, demo: ws.demo })
+})
+
+app.get('/events', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const db = await getDb()
+  const rows = await db.query(
+    'SELECT id, invoice_hash, kind, detail, created_at FROM events WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 30',
+    [ws.id]
+  )
+  return c.json({ events: rows.rows })
+})
+
+app.get('/invoices/:hash', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const db = await getDb()
+  const hash = c.req.param('hash')
+  const rows = await db.query('SELECT * FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [ws.id, hash])
+  if (!rows.rows[0]) return c.json({ error: 'not found' }, 404)
+  return c.json(presentInvoice(rows.rows[0]))
+})
+
+app.post('/invoices', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const body = await c.req.parseBody()
+  const file = body.file
+  let pdf: Buffer
+  if (file && typeof file === 'object' && 'arrayBuffer' in file) {
+    pdf = Buffer.from(await (file as File).arrayBuffer())
+  } else {
+    const raw = await c.req.arrayBuffer()
+    pdf = Buffer.from(raw)
+  }
+  if (pdf.length < 20) return c.json({ error: 'empty invoice' }, 400)
+  const invoiceHash = sha256Bytes32(pdf)
+  const db = await getDb()
+  const existing = await db.query(
+    'SELECT invoice_hash, status FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2',
+    [ws.id, invoiceHash]
+  )
+  if (existing.rows[0]) {
+    return c.json({ duplicate: true, invoiceHash, status: existing.rows[0].status }, 409)
+  }
+  const chain = await onchainInvoice(ws, invoiceHash)
+  if (chain.paid) return c.json({ duplicate: true, invoiceHash, status: 'paid-on-chain' }, 409)
+
+  const stored = await encryptUploadProve(pdf, invoiceHash.slice(2))
+  const registerTx = await registerInvoice(ws, invoiceHash, stored.root)
+  await db.query(
+    `INSERT INTO invoices (workspace_id, invoice_hash, storage_root, flow_tx, tx_seq, go_proof_ok, go_proof_log, status, register_tx)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'stored',$8)`,
+    [ws.id, invoiceHash, stored.root, stored.flowTx, stored.txSeq, stored.goProofOk, stored.goProofLog, registerTx]
+  )
+  await recordEvent(ws.id, invoiceHash, 'stored', { root: stored.root, flowTx: stored.flowTx, registerTx })
+
+  const analyze = c.req.query('analyze') !== '0'
+  if (!analyze) {
+    return c.json({ invoiceHash, storage: stored, registerTx, status: 'stored', workspaceId: ws.id })
+  }
+
+  const png = await rasterizePdf(pdf)
+  const tee = await extractInvoicePng(png, invoiceHash)
+  let amountUnits: bigint | null = null
+  try {
+    if (tee.extracted?.total_usd) amountUnits = parseUsdToUnits(tee.extracted.total_usd)
+  } catch {
+    amountUnits = null
+  }
+  const remittance = tee.extracted?.remittance_usdc_e || ''
+  const allowed = /^0x[a-fA-F0-9]{40}$/.test(remittance) ? await vendorAllowed(ws, remittance) : false
+  const vs = await vaultState(ws)
+  const screened = screenInvoice({
+    invoiceHash,
+    alreadyPaid: chain.paid,
+    alreadySeen: false,
+    extracted: tee.extracted,
+    remittanceAllowed: allowed,
+    amountUnits,
+    band0Max: BigInt(vs.band0Max),
+  })
+  const att = tee.attestation
+  await db.query(
+    `UPDATE invoices SET status=$3, flags=$4::jsonb, extracted=$5::jsonb, vendor=$6, remittance=$7, amount_units=$8,
+      chat_id=$9, signed_text=$10, request_half=$11, response_hash=$12, recovered_signer=$13, process_response=$14,
+      attestation_ok=$15, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2`,
+    [
+      ws.id,
+      invoiceHash,
+      screened.status,
+      JSON.stringify(screened.flags),
+      JSON.stringify(tee.extracted || {}),
+      tee.extracted?.vendor_name || null,
+      remittance || null,
+      amountUnits == null ? null : amountUnits.toString(),
+      tee.chatId,
+      att.ok ? att.signedText : null,
+      att.ok ? att.requestHalf : null,
+      att.ok ? att.responseHash : null,
+      att.ok ? att.recoveredSigner : null,
+      String(tee.processResponse),
+      att.ok,
+    ]
