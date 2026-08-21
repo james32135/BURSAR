@@ -103,3 +103,93 @@ export async function verifyPayment(id: string) {
   const chainPay = await onchainPayment(ctx, invoiceHash)
   const inv = await onchainInvoice(ctx, invoiceHash)
 
+  const amount = paid.args.amount as bigint
+  const vendor = paid.args.vendor as string
+  const transferOk =
+    transfer &&
+    String(transfer.args.to).toLowerCase() === vendor.toLowerCase() &&
+    String(transfer.args.from).toLowerCase() === paidVault.toLowerCase() &&
+    BigInt(transfer.args.value) === amount
+
+  if (!transferOk) {
+    return {
+      status: 'INVALID' as VerifyStatus,
+      reason: 'Paid event does not match USDC.e Transfer',
+      txHash,
+      invoiceHash,
+      vault: paidVault,
+      paid: jsonSafe(paid.args),
+    }
+  }
+
+  const signer = paid.args.recoveredSigner as string
+  const responseHash = paid.args.responseHash as string
+  const storageRoot = paid.args.storageRoot as string
+  if (!signer || signer === ethers.ZeroAddress || responseHash === ethers.ZeroHash || storageRoot === ethers.ZeroHash) {
+    return { status: 'MISSING_EVIDENCE' as VerifyStatus, reason: 'empty attestation/storage commitments', txHash, invoiceHash }
+  }
+
+  let storageProof: { ok: boolean; log: string } | { skipped: string } | null = null
+  try {
+    if (inv.storageRoot && inv.storageRoot !== ethers.ZeroHash) {
+      storageProof = await goProofDownload(inv.storageRoot)
+    }
+  } catch (e) {
+    storageProof = { ok: false, log: e instanceof Error ? e.message : String(e) }
+  }
+
+  const goOk = Boolean(storageProof && 'ok' in storageProof && storageProof.ok)
+  const verified =
+    Boolean(inv.paid) &&
+    chainPay.vendor.toLowerCase() === vendor.toLowerCase() &&
+    BigInt(chainPay.amount) === amount &&
+    goOk
+
+  if (!goOk) {
+    return {
+      status: 'INVALID' as VerifyStatus,
+      reason: 'chain payment exists but Go storage proof did not succeed',
+      txHash,
+      explorer: `${config.explorer}/tx/${txHash}`,
+      invoiceHash,
+      vault: paidVault,
+      vendor,
+      amount: amount.toString(),
+      storageRoot,
+      goProof: storageProof,
+      didMoneyMove: true,
+      source: 'chain+storagescan+go-proof',
+    }
+  }
+
+  return {
+    status: (verified ? 'VERIFIED' : 'INVALID') as VerifyStatus,
+    txHash,
+    explorer: `${config.explorer}/tx/${txHash}`,
+    invoiceHash,
+    vault: paidVault,
+    vendor,
+    amount: amount.toString(),
+    storageRoot,
+    storageScan: `${config.storageScan}/?root=${storageRoot}`,
+    responseHash,
+    recoveredSigner: signer,
+    policyVersion: (paid.args.policyVersion as bigint).toString(),
+    sessionId: paid.args.sessionId,
+    chainPayment: {
+      vendor: chainPay.vendor,
+      amount: chainPay.amount.toString(),
+      storageRoot: chainPay.storageRoot,
+      responseHash: chainPay.responseHash,
+      recoveredSigner: chainPay.recoveredSigner,
+      policyVersion: chainPay.policyVersion.toString(),
+    },
+    usdcTransfer: transfer
+      ? { from: transfer.args.from, to: transfer.args.to, value: transfer.args.value.toString() }
+      : null,
+    goProof: storageProof,
+    didMoneyMove: true,
+    source: 'chain+storagescan+go-proof',
+    notFrom: ['render-disk', 'ts-proof-true', 'processResponse-boolean-alone'],
+  }
+}
