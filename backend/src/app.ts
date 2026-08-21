@@ -333,3 +333,92 @@ app.post('/invoices', async (c) => {
       String(tee.processResponse),
       att.ok,
     ]
+  )
+  await recordEvent(ws.id, invoiceHash, 'analyzed', { status: screened.status, flags: screened.flags, chatId: tee.chatId })
+  return c.json({
+    invoiceHash,
+    invoice_hash: invoiceHash,
+    workspaceId: ws.id,
+    storage: stored,
+    registerTx,
+    extraction: tee.extracted,
+    extracted: tee.extracted,
+    vendor: tee.extracted?.vendor_name || null,
+    remittance,
+    amount_units: amountUnits == null ? null : amountUnits.toString(),
+    attestation: att,
+    processResponse: tee.processResponse,
+    originalPostHash: tee.originalPostHash,
+    requestHalfNote: 'broker rewrites request; original POST sha256 is not the signed request half',
+    flags: screened.flags,
+    status: screened.status,
+    providerUrl: tee.providerUrl,
+    model: tee.model,
+  })
+})
+
+app.post('/invoices/:hash/pay', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const hash = c.req.param('hash')
+  const db = await getDb()
+  const rows = await db.query('SELECT * FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [ws.id, hash])
+  const inv = rows.rows[0]
+  if (!inv) return c.json({ error: 'not found' }, 404)
+  if (inv.status === 'paid') return c.json({ error: 'already paid' }, 409)
+  if (inv.attestation_ok !== true && inv.attestation_ok !== 't') return c.json({ error: 'attestation missing' }, 400)
+  const flags = typeof inv.flags === 'string' ? JSON.parse(inv.flags) : inv.flags
+  if (Array.isArray(flags) && flags.some((f: { severity: string }) => f.severity === 'block')) {
+    return c.json({ error: 'blocked', flags }, 400)
+  }
+  const remittance = String(inv.remittance || '')
+  const amount = BigInt(String(inv.amount_units || '0'))
+  const vs = await vaultState(ws)
+  if (amount > BigInt(vs.band0Max)) return c.json({ error: 'over-band0', amount: amount.toString(), band0Max: vs.band0Max }, 400)
+  if (!(await vendorAllowed(ws, remittance))) return c.json({ error: 'vendor-not-allowlisted' }, 400)
+  const result = await sessionPay(ws, {
+    vendor: remittance,
+    amount,
+    invoiceHash: hash,
+    storageRoot: String(inv.storage_root),
+    responseHash: '0x' + String(inv.response_hash).replace(/^0x/, ''),
+    recoveredSigner: String(inv.recovered_signer),
+  })
+  if (!result.didMoneyMove) {
+    await recordEvent(ws.id, hash, 'pay-failed', result)
+    return c.json({ error: 'money-did-not-move', result }, 500)
+  }
+  await db.query(
+    "UPDATE invoices SET status='paid', pay_tx=$3, pay_session=$4, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2",
+    [ws.id, hash, result.hash, ws.sessionId]
+  )
+  await recordEvent(ws.id, hash, 'paid', result)
+  return c.json({ ok: true, ...result })
+})
+
+app.post('/invoices/:hash/confirm-pay', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const hash = c.req.param('hash')
+  const body = await c.req.json<{ tx?: string }>().catch(() => ({ tx: undefined }))
+  const db = await getDb()
+  const rows = await db.query('SELECT * FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [ws.id, hash])
+  if (!rows.rows[0]) return c.json({ error: 'not found' }, 404)
+  const chain = await onchainInvoice(ws, hash)
+  if (!chain.paid) return c.json({ error: 'not paid on this vault', vault: ws.vault }, 400)
+  const payment = await onchainPayment(ws, hash)
+  await db.query(
+    "UPDATE invoices SET status='paid', pay_tx=COALESCE($3, pay_tx), updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2",
+    [ws.id, hash, body.tx || null]
+  )
+  await recordEvent(ws.id, hash, 'paid', { source: 'confirm-pay', tx: body.tx || null, vendor: payment.vendor })
+  return c.json({ ok: true, invoiceHash: hash, vault: ws.vault, paid: true, tx: body.tx || null, vendor: payment.vendor })
+})
+
+app.get('/verify/:id', async (c) => {
+  const id = c.req.param('id')
+  const out = await verifyPayment(id)
+  return c.json(JSON.parse(JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))))
+})
