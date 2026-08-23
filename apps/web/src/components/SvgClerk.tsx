@@ -147,3 +147,133 @@ export function SvgHotWallet({ className }: { className?: string }) {
       )}
     </Scene>
   )
+}
+
+/** Invoice → sealed AI → vault policy. The agent never holds the key. */
+export function SvgVaultAuthority({ className }: { className?: string }) {
+  return (
+    <Scene className={className} title="AI recommends. The vault decides.">
+      {(uid) => (
+        <>
+          <rect x="24" y="36" width="512" height="248" rx="4" fill={C.panel} stroke={C.line} />
+          <rect data-draw x="48" y="92" width="110" height="136" rx="3" fill={C.paper} />
+          <line x1="64" y1="118" x2="142" y2="118" stroke={C.ink} strokeWidth="1" opacity="0.35" data-fade />
+          <line x1="64" y1="134" x2="128" y2="134" stroke={C.ink} strokeWidth="1" opacity="0.25" data-fade />
+          <line x1="64" y1="150" x2="136" y2="150" stroke={C.ink} strokeWidth="1" opacity="0.25" data-fade />
+          <text data-fade x="103" y="206" textAnchor="middle" fill={C.ink} fontFamily="IBM Plex Mono, monospace" fontSize="9">
+            INVOICE
+          </text>
+          <path data-draw d="M168 160 H228" fill="none" stroke={C.seal} />
+          <rect data-draw x="228" y="112" width="120" height="96" rx="4" fill="none" stroke={C.seal} />
+          <text data-fade x="288" y="152" textAnchor="middle" fill={C.text} fontFamily="Instrument Sans, sans-serif" fontSize="14" fontWeight="700">
+            Direct TeeML
+          </text>
+          <text data-fade x="288" y="174" textAnchor="middle" fill={C.muted} fontFamily="IBM Plex Mono, monospace" fontSize="9">
+            recommend, not pay
+          </text>
+          <path data-draw d="M348 160 H408" fill="none" stroke={C.ok} />
+          <rect data-draw x="408" y="104" width="120" height="112" rx="4" fill="none" stroke={C.ok} />
+          <text data-fade x="468" y="148" textAnchor="middle" fill={C.text} fontFamily="Instrument Sans, sans-serif" fontSize="14" fontWeight="700">
+            VAULT
+          </text>
+          <text data-fade x="468" y="170" textAnchor="middle" fill={C.muted} fontFamily="IBM Plex Mono, monospace" fontSize="9">
+            final authority
+          </text>
+          <circle data-travel="desk" data-travel-dur="4.4" r="3.5" fill={C.seal} opacity="0" />
+          <path data-path="desk" d="M158 160 H468" fill="none" stroke="none" />
+        </>
+      )}
+    </Scene>
+  )
+}
+
+/** Chain + Storage + TEE signer reconstruct /verify. */
+export function SvgProofLedger({ className }: { className?: string }) {
+  return (
+    <Scene className={className} title="Proof reconstructed from chain and Storage">
+      {() => (
+        <>
+          <rect x="24" y="36" width="512" height="248" rx="4" fill={C.panel} stroke={C.line} />
+          {[
+            ['Invoice hash', 70],
+            ['Storage root + Go proof', 128],
+            ['TEE signer recovered', 186],
+            ['USDC.e Transfer + Paid', 244],
+          ].map(([label, y], i) => (
+            <g key={label}>
+              <rect data-draw x="64" y={Number(y) - 22} width="432" height="44" rx="3" fill="none" stroke={C.line} />
+              <text data-fade x="88" y={Number(y) + 4} fill={C.dim} fontFamily="IBM Plex Mono, monospace" fontSize="10">
+                {String(i + 1).padStart(2, '0')}
+              </text>
+              <text data-fade x="128" y={Number(y) + 4} fill={C.text} fontFamily="IBM Plex Sans, sans-serif" fontSize="14">
+                {label}
+              </text>
+            </g>
+          ))}
+          <path data-flow="5 10" d="M48 48 V272" fill="none" stroke={C.seal} strokeWidth="1.2" />
+        </>
+      )}
+    </Scene>
+  )
+}
+
+/** Scoped session inside a fence. Treasury key stays with the owner. */
+export function SvgScopedAgent({ className }: { className?: string }) {
+  return (
+    <Scene className={className} title="Scoped agent cannot withdraw or change policy">
+      {() => (
+        <>
+          <rect x="24" y="36" width="512" height="248" rx="4" fill={C.panel} stroke={C.line} />
+          <rect data-draw x="70" y="72" width="250" height="176" rx="4" fill="none" stroke={C.seal} strokeDasharray="6 6" />
+          <text data-fade x="195" y="104" textAnchor="middle" fill={C.seal} fontFamily="IBM Plex Mono, monospace" fontSize="10">
+            SESSION SCOPE
+          </text>
+          <text data-fade x="195" y="148" textAnchor="middle" fill={C.text} fontFamily="Instrument Sans, sans-serif" fontSize="18" fontWeight="700">
+            Band-0 pay
+          </text>
+          <text data-fade x="195" y="172" textAnchor="middle" fill={C.muted} fontFamily="IBM Plex Sans, sans-serif" fontSize="12">
+            allowlisted vendors only
+          </text>
+          <text data-fade x="195" y="220" textAnchor="middle" fill={C.dim} fontFamily="IBM Plex Mono, monospace" fontSize="10">
+            cannot withdraw · cannot setVendor
+          </text>
+          <rect data-draw x="360" y="96" width="150" height="128" rx="4" fill="none" stroke={C.ok} />
+          <text data-fade x="435" y="148" textAnchor="middle" fill={C.text} fontFamily="Instrument Sans, sans-serif" fontSize="16" fontWeight="700">
+            Owner key
+          </text>
+          <text data-fade x="435" y="172" textAnchor="middle" fill={C.muted} fontFamily="IBM Plex Mono, monospace" fontSize="10">
+            outside the fence
+          </text>
+        </>
+      )}
+    </Scene>
+  )
+}
+
+/** Four 0G rails that BURSAR actually uses. */
+export function SvgIntegrations({ className }: { className?: string }) {
+  return (
+    <Scene className={className} title="0G Compute, Storage, Aristotle, USDC.e" viewBox="0 0 560 220">
+      {() => (
+        <>
+          {[
+            ['0G Compute', 'Direct TeeML', 40],
+            ['0G Storage', 'encrypted + Go proof', 160],
+            ['Aristotle', 'BursarVault 16661', 280],
+            ['USDC.e', 'vault transfer only', 400],
+          ].map(([t, d, x]) => (
+            <g key={t} data-fade>
+              <rect x={Number(x)} y="48" width="108" height="124" rx="4" fill="none" stroke={C.line} data-draw />
+              <text x={Number(x) + 54} y="98" textAnchor="middle" fill={C.text} fontFamily="Instrument Sans, sans-serif" fontSize="13" fontWeight="700">
+                {t}
+              </text>
+              <text x={Number(x) + 54} y="124" textAnchor="middle" fill={C.muted} fontFamily="IBM Plex Mono, monospace" fontSize="9">
+                {d}
+              </text>
+            </g>
+          ))}
+        </>
+      )}
+    </Scene>
+  )
+}
