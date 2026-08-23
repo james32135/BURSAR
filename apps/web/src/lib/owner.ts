@@ -105,3 +105,103 @@ export function formatOwnerError(err: unknown) {
   return first.length > 220 ? first.slice(0, 220) + '…' : first
 }
 
+async function connectedClient(ethereum: Eip1193) {
+  if ((await readChainId(ethereum)) !== LIVE.chainId) {
+    throw new Error('MetaMask is not on 0G Aristotle (16661). Approve the switch, then retry.')
+  }
+  const walletClient = createWalletClient({
+    chain: aristotle,
+    transport: custom(ethereum as never),
+  })
+  const [account] = await walletClient.getAddresses()
+  return { walletClient, account, publicClient: createPublicClient({ chain: aristotle, transport: http(LIVE.rpc) }) }
+}
+
+export async function ownerWrite(
+  ethereum: Eip1193,
+  functionName: 'setPaused' | 'setVendor' | 'revokeSession' | 'withdraw' | 'createSession',
+  args: readonly unknown[]
+) {
+  const { walletClient, account } = await connectedClient(ethereum)
+  if (account.toLowerCase() !== ownerOf()) {
+    throw new Error('connected wallet is not this workspace owner')
+  }
+  return walletClient.writeContract({
+    address: vaultOf(),
+    abi: vaultAbi,
+    functionName,
+    args: args as never,
+    account,
+    chain: aristotle,
+  })
+}
+
+export async function createVault(ethereum: Eip1193) {
+  const { walletClient, account, publicClient } = await connectedClient(ethereum)
+  const hash = await walletClient.writeContract({
+    address: LIVE.factory as `0x${string}`,
+    abi: factoryAbi,
+    functionName: 'createVault',
+    args: [LIVE.usdc as `0x${string}`, 200_000_000n, 10_000_000_000n],
+    account,
+    chain: aristotle,
+  })
+  const rec = await publicClient.waitForTransactionReceipt({ hash })
+  let vault = ''
+  for (const log of rec.logs) {
+    try {
+      const parsed = decodeEventLog({ abi: factoryAbi, data: log.data, topics: log.topics })
+      if (parsed.eventName === 'VaultCreated') vault = String(parsed.args.vault)
+    } catch {
+      /* skip */
+    }
+  }
+  if (!vault) throw new Error('VaultCreated event missing')
+  return { hash, vault }
+}
+
+export async function fundVault(ethereum: Eip1193, amount: bigint) {
+  const { walletClient, account } = await connectedClient(ethereum)
+  return walletClient.writeContract({
+    address: LIVE.usdc as `0x${string}`,
+    abi: usdcAbi,
+    functionName: 'transfer',
+    args: [vaultOf(), amount],
+    account,
+    chain: aristotle,
+  })
+}
+
+export async function ownerPayInvoice(
+  ethereum: Eip1193,
+  args: {
+    vendor: `0x${string}`
+    amount: bigint
+    invoiceHash: `0x${string}`
+    storageRoot: `0x${string}`
+    responseHash: `0x${string}`
+    recoveredSigner: `0x${string}`
+  }
+) {
+  const { walletClient, account, publicClient } = await connectedClient(ethereum)
+  if (account.toLowerCase() !== ownerOf()) {
+    throw new Error('connected wallet is not this workspace owner')
+  }
+  const hash = await walletClient.writeContract({
+    address: vaultOf(),
+    abi: vaultAbi,
+    functionName: 'ownerPay',
+    args: [args.vendor, args.amount, args.invoiceHash, args.storageRoot, args.responseHash, args.recoveredSigner],
+    account,
+    chain: aristotle,
+  })
+  await publicClient.waitForTransactionReceipt({ hash })
+  return hash
+}
+
+export async function signBind(ethereum: Eip1193, vault: string, issuedAt: number) {
+  const { walletClient, account } = await connectedClient(ethereum)
+  const message = `BURSAR bind\nchain ${LIVE.chainId}\nvault ${vault.toLowerCase()}\ntime ${issuedAt}`
+  const signature = await walletClient.signMessage({ account, message })
+  return { account, message, signature, issuedAt }
+}
