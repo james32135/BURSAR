@@ -129,3 +129,102 @@ export function InvoiceDetail() {
       <p className="mt-3 max-w-2xl text-sm text-[var(--fg-muted)]">{why}</p>
       {err && <p className="mt-3 text-sm text-red-400">{err}</p>}
 
+      <div className="mt-8">
+        <InvoicePaper inv={inv} />
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-display text-xl font-bold">Evidence</h2>
+          <dl className="mt-4 grid grid-cols-[120px_1fr] gap-y-2 text-sm">
+            <dt className="text-[var(--fg-muted)]">Invoice ID</dt><dd className="font-mono text-xs">{ex.invoice_number || '-'}</dd>
+            <dt className="text-[var(--fg-muted)]">Hash</dt><dd className="break-all font-mono text-xs">{id}</dd>
+            <dt className="text-[var(--fg-muted)]">Storage</dt><dd className="break-all font-mono text-xs">{inv.storage_root}</dd>
+            <dt className="text-[var(--fg-muted)]">Flow tx</dt>
+            <dd className="break-all font-mono text-xs">
+              {inv.flow_tx ? <a className="text-[#93c5fd] underline" href={txUrl(inv.flow_tx)}>{inv.flow_tx}</a> : '-'}
+            </dd>
+            <dt className="text-[var(--fg-muted)]">Go proof</dt><dd>{inv.go_proof_ok ? 'Succeeded to validate the downloaded file' : '-'}</dd>
+            <dt className="text-[var(--fg-muted)]">AI signer</dt>
+            <dd className="break-all font-mono text-xs">
+              <a className="text-[#93c5fd] underline" href={addrUrl(inv.recovered_signer || LIVE.teeSigner)}>{inv.recovered_signer || LIVE.teeSigner}</a>
+            </dd>
+            <dt className="text-[var(--fg-muted)]">Attestation</dt><dd>{inv.attestation_ok ? 'EIP-191 signer recovered (not a hardware quote)' : 'missing'}</dd>
+            <dt className="text-[var(--fg-muted)]">Session</dt><dd>{session?.revoked ? 'revoked' : 'scoped Band 0'}</dd>
+            <dt className="text-[var(--fg-muted)]">Vault</dt><dd className="break-all font-mono text-xs">{vault}</dd>
+          </dl>
+        </div>
+        <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-display text-xl font-bold">Audit trail</h2>
+          <div className="mt-4">
+            <ProofTrail steps={invoiceTrail(inv)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h2 className="font-display text-xl font-bold">Policy decision</h2>
+        {flags.length ? flags.map((f) => (
+          <p key={f.code} className="mt-3 border-l-2 border-red-500 pl-3 text-sm"><strong>{f.code}</strong> {f.detail}</p>
+        )) : inv.pay_tx ? (
+          <p className="mt-3 text-sm text-emerald-300">Paid. USDC.e moved. This vault will not pay this hash again.</p>
+        ) : (
+          <p className="mt-3 text-sm text-[var(--fg-muted)]">No blocking flags. Band 0 session may pay if the vault is open.</p>
+        )}
+        {inv.pay_tx && (
+          <p className="mt-4 flex flex-wrap gap-4 text-sm">
+            <a className="text-[#93c5fd] underline" href={txUrl(inv.pay_tx)}>Open ChainScan</a>
+            <Link className="text-[#93c5fd] underline" to={'/app/proof/' + inv.pay_tx}>Verify on 0G</Link>
+          </p>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {proof && (
+          <motion.pre
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 overflow-auto rounded-[4px] border border-emerald-500/30 bg-[var(--surface)] p-4 font-mono text-[11px] text-[var(--fg-muted)]"
+          >
+            {JSON.stringify(proof, null, 2)}
+          </motion.pre>
+        )}
+      </AnimatePresence>
+
+      <ConfirmDialog
+        open={open}
+        busy={pay.isPending}
+        onCancel={() => setOpen(false)}
+        onConfirm={() => pay.mutate()}
+        confirmLabel="Execute session pay"
+        title="Autonomous session action. No wallet prompt after this confirm."
+        intent={{
+          what: 'USDC.e.transfer from this workspace BursarVault (session pay)',
+          why: 'Band 0 allowlisted vendor, unique invoice hash, recovered TEE signer',
+          amount: amountLabel,
+          recipient: String(inv.remittance || ''),
+          contract: vault,
+          network: '0G Aristotle 16661',
+          after: 'On-chain transfer, then /verify from Paid + USDC.e Transfer + Go proof',
+        }}
+      />
+      <ConfirmDialog
+        open={ownerOpen}
+        busy={ownerPay.isPending}
+        onCancel={() => setOwnerOpen(false)}
+        onConfirm={() => ownerPay.mutate()}
+        confirmLabel="Owner pay"
+        title="Owner signature required. MetaMask will open."
+        intent={{
+          what: 'BursarVault.ownerPay (owner wallet, not the agent)',
+          why: 'Amount is above Band 0. Agent cannot auto-pay.',
+          amount: amountLabel,
+          recipient: String(inv.remittance || ''),
+          contract: vault,
+          network: '0G Aristotle 16661',
+          after: 'Paid event on this vault only. Agent still cannot withdraw.',
+        }}
+      />
+    </div>
+  )
+}
