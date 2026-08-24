@@ -132,3 +132,76 @@ export function Landing() {
           </div>
         </section>
 
+        <section id="work" className="flow-pin flex min-h-[100dvh] flex-col justify-center px-6 md:px-12">
+          <div className="mx-auto w-full max-w-6xl">
+            <h2 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
+              Invoice. Private AI. Policy. Vault. USDC.e. Proof.
+            </h2>
+            <div className="mt-12 flex gap-2 overflow-x-auto md:grid md:grid-cols-6 md:gap-3 md:overflow-visible">
+              {[
+                { t: 'Invoice', d: 'PDF hash registered to your vault only.' },
+                { t: 'Direct TeeML', d: 'Vision model 0gm-1.0-35b-a3b. Signed response recovered.' },
+                { t: '0G Storage', d: 'Encrypted upload. Go client proves the download.' },
+                { t: 'Policy', d: 'Vendor, band, session cap, pause, expiry, revoke.' },
+                { t: 'USDC.e', d: 'BursarVault.transfer. Not Payment Layer. Not 0G Pay.' },
+                { t: 'Aristotle', d: '/verify reconstructs Paid + Transfer + merkle proof.' },
+              ].map((s) => (
+                <div key={s.t} className="flow-step min-w-[220px] rounded-[4px] border border-white/10 bg-[#111113] p-5 md:min-w-0">
+                  <h3 className="font-display text-lg font-bold">{s.t}</h3>
+                  <p className="mt-2 text-sm text-[#a1a1aa]">{s.d}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-8 max-w-2xl text-sm text-[#a1a1aa]">
+              processResponse is EIP-191 recovery of the registered TEE signer, not a hardware quote. We do not claim that 0G cannot see your data.
+            </p>
+          </div>
+        </section>
+
+        <section id="proof" className="px-6 py-32 md:px-12 md:py-48">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">Open the chain. Do not trust a screenshot.</h2>
+            <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
+              {LIVE.proofs.map((p) => (
+                <li key={p.tx} className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm">{p.label}</span>
+                  <a className="font-mono text-xs text-[#93c5fd] hover:text-white" href={txUrl(p.tx)}>
+                    {p.tx}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 font-mono text-xs text-[#a1a1aa]">
+              Factory{' '}
+              <a className="text-[#93c5fd]" href={addrUrl(LIVE.factory)}>
+                {LIVE.factory}
+              </a>
+            </p>
+          </div>
+        </section>
+
+        <section className="px-6 py-24 md:px-12 md:py-32">
+          <div className="mx-auto max-w-5xl rounded-[4px] border border-white/10 bg-[#111113] px-8 py-16 md:px-16">
+            <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">Create your workspace.</h2>
+            <p className="mt-4 max-w-md text-[#a1a1aa]">
+              Connect the owner wallet. Deploy a vault. Authorize a scoped agent. Submit the first invoice.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <MagneticButton href="/app" variant="ghost">
+                Open console
+              </MagneticButton>
+              <MagneticButton href="/agent" variant="ghost">
+                MCP / SDK
+              </MagneticButton>
+            </div>
+          </div>
+        </section>
+
+        <footer className="flex flex-col gap-3 border-t border-white/10 px-6 py-10 text-sm text-[#a1a1aa] md:flex-row md:items-center md:justify-between md:px-12">
+          <span className="font-display font-bold text-white">BURSAR</span>
+          <span>Autonomous finance desk. The vault is the final authority.</span>
+        </footer>
+      </main>
+    </SmoothScroll>
+  )
+}
