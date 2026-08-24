@@ -131,3 +131,110 @@ export default function Onboarding() {
     enterDemo()
     nav('/app')
   }
+
+  return (
+    <div className="min-h-[100dvh] bg-[#09090b] text-[#fafafa]">
+      <header className="flex h-16 items-center justify-between px-6">
+        <Link to="/" className="font-display text-lg font-bold">BURSAR</Link>
+        <WalletBar />
+      </header>
+      <main className="mx-auto max-w-3xl px-6 py-10">
+        <h1 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
+          Connect the owner wallet. Create a vault the agent cannot own.
+        </h1>
+        <p className="mt-4 max-w-xl text-[#a1a1aa]">
+          Each workspace is a separate BursarVault. The agent never receives the owner key, seed, or withdraw rights.
+        </p>
+
+        <ol className="mt-10 space-y-4">
+          <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Connect owner wallet</h2>
+              <AuthorityBadge kind="owner" />
+            </div>
+            <p className="mt-2 font-mono text-xs text-[#a1a1aa]">{!ready ? 'wallet…' : authed ? addr : 'Not connected'}</p>
+            {!authenticated && (
+              <MagneticButton className="mt-4" onClick={() => login()}>Connect owner wallet</MagneticButton>
+            )}
+          </li>
+
+          <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Create vault</h2>
+              <AuthorityBadge kind="owner" />
+            </div>
+            <p className="mt-2 text-sm text-[#a1a1aa]">
+              Factory {LIVE.factory.slice(0, 10)}… deploys a BursarVault you own on Aristotle. Band 0 $200. Band 1 $10,000.
+            </p>
+            {vault ? (
+              <p className="mt-2 break-all font-mono text-xs">
+                <a className="text-[#93c5fd] hover:text-white" href={addrUrl(vault)}>{vault}</a>
+              </p>
+            ) : (
+              <MagneticButton className="mt-4" disabled={!authed || Boolean(busy)} onClick={onCreateVault}>
+                Create vault
+              </MagneticButton>
+            )}
+          </li>
+
+          <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
+            <h2 className="font-display text-lg font-bold">Bind workspace</h2>
+            <p className="mt-2 text-sm text-[#a1a1aa]">Signs a bind message. Server stores a scoped agent key. Token is shown once.</p>
+            {bound ? (
+              <p className="mt-2 font-mono text-xs">Workspace {bound.id} · agent {bound.agentAddress.slice(0, 10)}…</p>
+            ) : (
+              <MagneticButton className="mt-4" disabled={!vault || Boolean(busy)} onClick={onBind}>
+                Bind workspace
+              </MagneticButton>
+            )}
+            {bound?.agentToken && step >= 3 && (
+              <p className="mt-3 break-all font-mono text-[10px] text-[#a1a1aa]">MCP token stored in this browser. Copy it for SDK/MCP. It is not the owner key.</p>
+            )}
+          </li>
+
+          <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Authorize scoped agent</h2>
+              <AuthorityBadge kind="owner" />
+            </div>
+            <p className="mt-2 text-sm text-[#a1a1aa]">createSession: agent can register and Band-0 pay only. Cap $200. 30 days.</p>
+            <MagneticButton className="mt-4" disabled={!bound || sessionOk || Boolean(busy)} onClick={onSession}>
+              {sessionOk ? 'Session authorized' : 'Authorize agent'}
+            </MagneticButton>
+          </li>
+
+          <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
+            <h2 className="font-display text-lg font-bold">Allow a vendor</h2>
+            <p className="mt-2 text-sm text-[#a1a1aa]">Test remittance {LIVE.remittance}. The agent cannot add vendors.</p>
+            <MagneticButton className="mt-4" disabled={!sessionOk || vendorOk || Boolean(busy)} onClick={onVendor}>
+              {vendorOk ? 'Vendor allowed' : 'Allow remittance'}
+            </MagneticButton>
+          </li>
+
+          <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
+            <h2 className="font-display text-lg font-bold">Fund vault</h2>
+            <p className="mt-2 text-sm text-[#a1a1aa]">Owner transfers USDC.e to the vault. This sends 0.002 USDC.e (2000 units) if you hold it.</p>
+            <MagneticButton className="mt-4" disabled={!vendorOk || funded || Boolean(busy)} onClick={onFund}>
+              {funded ? 'Funded' : 'Fund 0.002 USDC.e'}
+            </MagneticButton>
+            {(funded || bound) && (
+              <MagneticButton className="mt-3" variant="ghost" href="/app/inbox">
+                Open inbox
+              </MagneticButton>
+            )}
+          </li>
+        </ol>
+
+        {busy && <p className="mt-6 font-mono text-xs text-[#93c5fd]">{busy}</p>}
+        {err && <p className="mt-4 border-l-2 border-red-500 pl-3 text-sm text-red-300">{err}</p>}
+
+        <div className="mt-12 border-t border-white/10 pt-8">
+          <p className="text-sm text-[#a1a1aa]">Judges can open the labeled DEMO vault. It is not your workspace.</p>
+          <button type="button" onClick={onDemo} className="mt-3 text-sm text-white underline">
+            Open DEMO workspace
+          </button>
+        </div>
+      </main>
+    </div>
+  )
+}
