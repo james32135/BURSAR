@@ -17,6 +17,8 @@ export const config = {
     '/api/vendors/:path*',
     '/api/queue',
     '/api/queue/:path*',
+    '/api/payables',
+    '/api/payables/:path*',
     '/api/integrations/:path*',
     '/api/workspaces',
     '/api/workspaces/:path*',

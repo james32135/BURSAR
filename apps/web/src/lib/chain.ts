@@ -29,6 +29,16 @@ export const vaultAbi = [
   },
   {
     type: 'function',
+    name: 'setBands',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'band0Max', type: 'uint256' },
+      { name: 'band1Max', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'revokeSession',
     stateMutability: 'nonpayable',
     inputs: [{ name: 'id', type: 'bytes32' }],
