@@ -44,19 +44,25 @@ export function AgentPage() {
         <div className="rounded-[4px] border border-emerald-500/20 p-5">
           <h2 className="font-display text-lg font-bold">Can</h2>
           <ul className="mt-3 space-y-2 text-sm text-[var(--fg-muted)]">
-            <li>submit_invoice, get_queue, inspect_invoice</li>
-            <li>request_approval (does not move money)</li>
-            <li>execute_allowed_payment for Band 0</li>
-            <li>get_payment_status, get_proof</li>
+            <li>Inspect payables</li>
+            <li>Analyze invoices with Direct TeeML</li>
+            <li>Request owner approval</li>
+            <li>Execute allowed Band 0 payments</li>
+            <li>Read vendor memory</li>
+            <li>Verify payments on 0G</li>
           </ul>
         </div>
         <div className="rounded-[4px] border border-red-500/20 p-5">
           <h2 className="font-display text-lg font-bold">Cannot</h2>
           <ul className="mt-3 space-y-2 text-sm text-[var(--fg-muted)]">
-            <li>Cannot withdraw</li>
-            <li>Cannot change policy or add vendors</li>
-            <li>Cannot raise limits or unpause</li>
-            <li>Cannot receive the owner key</li>
+            <li>Withdraw</li>
+            <li>Change policy</li>
+            <li>Add vendors</li>
+            <li>Raise limits</li>
+            <li>Pause or unpause the vault</li>
+            <li>Revoke itself</li>
+            <li>Access other workspaces</li>
+            <li>Receive the owner key</li>
           </ul>
           {bounds.data?.calls && (
             <ul className="mt-4 space-y-1 font-mono text-[11px] text-red-300">

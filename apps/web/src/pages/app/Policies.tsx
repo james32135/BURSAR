@@ -123,16 +123,27 @@ export function Policies() {
     <div>
       <PageHeader
         title="The vault is the law."
-        body={`Agents can automatically pay trusted vendors up to ${usd(vs?.band0Max)}. Anything above that requires owner approval.`}
+        body={`Agents can automatically pay trusted vendors up to ${usd(vs?.band0Max)}. Anything above that requires owner approval. The agent cannot rewrite these rules.`}
       />
+      <div className="mt-6 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h2 className="font-display text-lg font-bold">Why was a payment blocked?</h2>
+        <ul className="mt-3 space-y-2 text-sm text-[var(--fg-muted)]">
+          <li>Unknown vendor — remittance is not on this vault allowlist.</li>
+          <li>Changed recipient — this vendor’s previous approved address is different.</li>
+          <li>Over Band 0 — amount exceeds the autonomous limit.</li>
+          <li>Duplicate — this payable hash was already ingested or paid.</li>
+          <li>Paused / revoked / expired — the owner stopped the session.</li>
+        </ul>
+        <p className="mt-3 text-xs text-[var(--fg-muted)]">Open the payable for technical details: contract, session, hash, tx.</p>
+      </div>
       <div className="mt-8 grid gap-3 md:grid-cols-2">
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-display text-xl font-bold">Band 0</h2>
-          <p className="mt-2 text-sm">Autonomous pay to allowlisted vendors up to {usd(vs?.band0Max)}.</p>
+          <h2 className="font-display text-xl font-bold">Band 0 — autonomous</h2>
+          <p className="mt-2 text-sm">The agent may pay allowlisted vendors up to {usd(vs?.band0Max)} without a wallet prompt.</p>
         </div>
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-display text-xl font-bold">Band 1</h2>
-          <p className="mt-2 text-sm">Owner approval required up to {usd(vs?.band1Max)}. Session cannot ownerPay.</p>
+          <h2 className="font-display text-xl font-bold">Band 1 — owner only</h2>
+          <p className="mt-2 text-sm">Above Band 0, up to {usd(vs?.band1Max)}, the owner must sign. The agent cannot ownerPay.</p>
         </div>
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-display text-xl font-bold">Session limits</h2>

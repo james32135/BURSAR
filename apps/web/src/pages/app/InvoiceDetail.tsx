@@ -35,6 +35,7 @@ export function InvoiceDetail() {
   const over = flags.some((f) => f.code === 'over-band0')
   const duplicate = flags.some((f) => f.code.startsWith('duplicate'))
   const vendorBad = flags.some((f) => f.code === 'vendor-not-allowlisted')
+  const recipientChanged = flags.some((f) => f.code === 'recipient-changed')
   const vs = wsQ.data?.vaultState
   const session = wsQ.data?.session
   const paused = vs?.paused
@@ -42,8 +43,28 @@ export function InvoiceDetail() {
   const remaining = BigInt(session?.remaining || '0')
   const amountBn = BigInt(String(inv?.amount_units || '0'))
   const overSession = amountBn > remaining
-  const canPay = Boolean(inv && inv.status === 'clean' && !inv.pay_tx && !blocked && !paused && !over && !overSession)
-  const canOwnerPay = Boolean(inv && over && !inv.pay_tx && !blocked && !paused && !vendorBad && !duplicate && isOwner && inv.storage_root && inv.recovered_signer)
+  const canPay = Boolean(
+    inv &&
+      !inv.pay_tx &&
+      !blocked &&
+      !paused &&
+      !over &&
+      !overSession &&
+      (inv.status === 'clean' || inv.decision === 'auto-pay')
+  )
+  const needsOwner = Boolean(inv && !inv.pay_tx && !blocked && (over || recipientChanged || inv.decision === 'owner-review'))
+  const canOwnerPay = Boolean(
+    inv &&
+      (over || recipientChanged || inv.decision === 'owner-review') &&
+      !inv.pay_tx &&
+      !blocked &&
+      !paused &&
+      !vendorBad &&
+      !duplicate &&
+      isOwner &&
+      inv.storage_root &&
+      inv.recovered_signer
+  )
   const canAnalyze = Boolean(inv && (inv.status === 'stored' || inv.pipeline === 'stored') && !inv.pay_tx)
   const vault = wsQ.data?.workspace?.vault || loadWorkspace()?.vault || LIVE.vault
 
@@ -129,7 +150,7 @@ export function InvoiceDetail() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={inv.status} />
-            {canPay ? <AuthorityBadge kind="agent" /> : over && !blocked ? <AuthorityBadge kind="owner" /> : null}
+            {canPay ? <AuthorityBadge kind="agent" /> : needsOwner ? <AuthorityBadge kind="owner" /> : null}
           </div>
           <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">{ex.vendor_name || inv.vendor || 'Payable'}</h1>
           <p className="mt-1 font-mono text-[10px] uppercase text-[var(--fg-muted)]">{inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.decision || inv.status}</p>
@@ -140,9 +161,9 @@ export function InvoiceDetail() {
           </MagneticButton>
         ) : canPay ? (
           <MagneticButton variant="seal" onClick={() => setOpen(true)}>PAY</MagneticButton>
-        ) : over && !blocked && !inv.pay_tx ? (
+        ) : needsOwner ? (
           <MagneticButton variant="ghost" disabled={!canOwnerPay} onClick={() => setOwnerOpen(true)}>
-            REQUEST APPROVAL
+            APPROVE
           </MagneticButton>
         ) : (
           <MagneticButton variant="ghost" disabled>{cta}</MagneticButton>
@@ -155,6 +176,45 @@ export function InvoiceDetail() {
       </div>
       <PipelineStrip pipeline={inv.pipeline || inv.status} events={mine} />
       {err && <p className="mt-3 text-sm text-red-400">{err}</p>}
+
+      {needsOwner && (
+        <section className="mt-8 rounded-[4px] border border-amber-400/40 bg-amber-500/5 p-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-amber-200">Owner approval required</p>
+          <h2 className="font-display mt-2 text-2xl font-bold">The agent cannot pay this.</h2>
+          <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <div>
+              <dt className="font-mono text-[10px] uppercase text-[var(--fg-muted)]">Why</dt>
+              <dd className="mt-1">{over ? 'Over autonomous Band 0 limit' : recipientChanged ? 'Recipient is different from this vendor’s previous approved address.' : decisionLines[0]}</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase text-[var(--fg-muted)]">Amount</dt>
+              <dd className="mt-1">{amountLabel}</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase text-[var(--fg-muted)]">Recipient</dt>
+              <dd className="mt-1 break-all font-mono text-xs">{inv.remittance || '-'}</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase text-[var(--fg-muted)]">Last recipient</dt>
+              <dd className="mt-1 break-all font-mono text-xs">{flags.find((f) => f.code === 'recipient-changed')?.detail || 'Same allowlisted remittance, or none paid yet.'}</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase text-[var(--fg-muted)]">Policy</dt>
+              <dd className="mt-1">{over ? 'Band 1 / owner-only' : 'Vendor memory + owner review'}</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase text-[var(--fg-muted)]">Evidence</dt>
+              <dd className="mt-1">Storage {inv.go_proof_ok ? 'verified' : 'pending'} · AI {inv.attestation_ok ? 'EIP-191 signer recovered' : 'missing'} · duplicate {duplicate ? 'yes' : 'no'}</dd>
+            </div>
+          </dl>
+          <p className="mt-4 text-sm text-[var(--fg-muted)]">
+            APPROVE opens the owner wallet. The agent still cannot withdraw, change policy, or add vendors.
+          </p>
+          <MagneticButton className="mt-4" variant="ghost" disabled={!canOwnerPay} onClick={() => setOwnerOpen(true)}>
+            APPROVE
+          </MagneticButton>
+        </section>
+      )}
 
       <div className="mt-8">
         <InvoicePaper inv={inv} />
