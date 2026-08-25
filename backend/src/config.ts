@@ -62,6 +62,7 @@ export const config = {
   pgliteDir: process.env.BURSAR_PGLITE_DIR || resolve(BACKEND_ROOT, 'data/pglite'),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
+  telegramBotUsername: (process.env.TELEGRAM_BOT_USERNAME || 'BURSARxbot').replace(/^@/, ''),
 }
 
 export const VAULT_ABI = [
