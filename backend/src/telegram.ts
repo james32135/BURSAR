@@ -8,7 +8,7 @@ import { getWorkspaceById } from './workspace.ts'
 
 const CONSOLE = 'https://bursarx.vercel.app'
 const CODE_TTL_MS = 15 * 60 * 1000
-const RATE_MS = 400
+const RATE_MS = 1500
 
 type TgUser = { id: number; username?: string }
 type TgChat = { id: number }
@@ -242,6 +242,8 @@ async function showAttention(chatId: number, workspaceId: string) {
   const auto = q.rows.filter((r) => r.decision === 'auto-pay' || r.status === 'clean').length
   const review = q.rows.filter((r) => r.status === 'flagged' || r.decision === 'owner-review').length
   const blocked = q.rows.filter((r) => r.status === 'blocked' || r.decision === 'blocked').length
+  const target =
+    q.rows.find((r) => (r.decision === 'auto-pay' || r.status === 'clean') && r.status !== 'stored') || q.rows[0]
   const lines = [
     `${q.rows.length} payables need attention.`,
     `Auto-pay ${auto} · Owner review ${review} · Blocked ${blocked}`,
@@ -254,7 +256,7 @@ async function showAttention(chatId: number, workspaceId: string) {
   ]
   await send(chatId, lines.join('\n'), {
     reply_markup: {
-      inline_keyboard: [[{ text: 'Review first', callback_data: `open:${q.rows[0].invoice_hash}` }]],
+      inline_keyboard: [[{ text: 'Review first', callback_data: `open:${target.invoice_hash}` }]],
     },
   })
 }
@@ -277,8 +279,9 @@ async function inspect(chatId: number, workspaceId: string, hash: string) {
     `Risk / why: ${Array.isArray(why) ? why.join(' ') : String(why || '-')}`,
   ]
   const decision = String(inv.decision || '')
+  const canPay = (decision === 'auto-pay' || inv.status === 'clean') && inv.status !== 'paid' && inv.status !== 'flagged'
   const buttons =
-    decision === 'auto-pay' && inv.status !== 'paid'
+    canPay
       ? [[{ text: 'PAY', callback_data: `pay:${hash}` }, { text: 'Open console', url: `${CONSOLE}/app/inbox/${hash}` }]]
       : [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${hash}` }]]
   await send(chatId, lines.join('\n'), { reply_markup: { inline_keyboard: buttons } })
@@ -329,25 +332,27 @@ export async function handleTelegramUpdate(update: TgUpdate) {
     const data = String(cb.data || '')
     const [kind, hash] = data.split(':')
     if (kind === 'pay' && hash) {
-      const paid = await executeAllowedPay(bound.ws, hash)
-      await logAction(bound.ws.id, telegramUserId, 'pay', { hash, ok: paid.ok })
-      if (paid.ok === false) {
-        await answerCb(cb.id, paid.error)
-        await send(chatId, `PAY denied. ${paid.error}. 0 USDC.e moved.`)
-        return { ok: true, paid }
-      }
-      await answerCb(cb.id, 'Paid')
-      await send(
-        chatId,
-        [
-          `PAID ${usd(paid.moneyMoved)}`,
-          `Tx ${paid.hash}`,
-          paid.explorer,
-          `Vault ${paid.preVault} → ${paid.postVault}`,
-          `Vendor ${paid.preVendor} → ${paid.postVendor}`,
-        ].join('\n')
-      )
-      return { ok: true, paid }
+      await answerCb(cb.id, 'Paying…')
+      const wsPay = bound.ws
+      void (async () => {
+        const paid = await executeAllowedPay(wsPay, hash)
+        await logAction(wsPay.id, telegramUserId, 'pay', { hash, ok: paid.ok })
+        if (paid.ok === false) {
+          await send(chatId, `PAY denied. ${paid.error}. 0 USDC.e moved.`)
+          return
+        }
+        await send(
+          chatId,
+          [
+            `PAID ${usd(paid.moneyMoved)}`,
+            `Tx ${paid.hash}`,
+            paid.explorer,
+            `Vault ${paid.preVault} → ${paid.postVault}`,
+            `Vendor ${paid.preVendor} → ${paid.postVendor}`,
+          ].join('\n')
+        )
+      })()
+      return { ok: true, paying: hash }
     }
     if ((kind === 'open' || kind === 'review') && hash) {
       await answerCb(cb.id)
@@ -404,11 +409,11 @@ export async function handleTelegramUpdate(update: TgUpdate) {
   }
 
   if (c === '/workspace') {
-    await send(chatId, `Workspace ${bound.ws.id}\nVault ${bound.ws.vault}\nOwner ${bound.ws.owner}\nDEMO=${bound.ws.demo}`)
+    void send(chatId, `Workspace ${bound.ws.id}\nVault ${bound.ws.vault}\nOwner ${bound.ws.owner}\nDEMO=${bound.ws.demo}`)
     return { ok: true }
   }
   if (c === '/attention' || c === '/inbox') {
-    await showAttention(chatId, bound.ws.id)
+    void showAttention(chatId, bound.ws.id)
     return { ok: true }
   }
   if (c === '/review') {
