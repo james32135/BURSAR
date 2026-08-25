@@ -83,6 +83,42 @@ async function migrate(client: Db) {
       PRIMARY KEY (workspace_id, kind)
     )
   `)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS telegram_identities (
+      telegram_user_id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      chat_id TEXT NOT NULL,
+      username TEXT,
+      bound_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      revoked_at TIMESTAMPTZ,
+      last_action_at TIMESTAMPTZ
+    )
+  `)
+  await client.query(`CREATE INDEX IF NOT EXISTS telegram_identities_ws_idx ON telegram_identities (workspace_id)`)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS telegram_bind_codes (
+      code_hash TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ
+    )
+  `)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS telegram_updates (
+      update_id BIGINT PRIMARY KEY,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS telegram_actions (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      telegram_user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      payload JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
 }
 
 export async function getDb(): Promise<Db> {
