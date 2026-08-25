@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { config } from './config.ts'
 import { getDb, recordEvent } from './db.ts'
 import { payablePdf } from './artifact.ts'
-import { ingestPayable } from './ingest.ts'
+import { acceptPayable } from './ingest.ts'
 import { executeAllowedPay } from './pay.ts'
 import { getWorkspaceById } from './workspace.ts'
 
@@ -168,6 +168,20 @@ export async function unbindTelegram(workspaceId: string) {
   )
 }
 
+export async function notifyWorkspaceProcessing(workspaceId: string, invoiceHash: string) {
+  if (!config.telegramBotToken) return
+  const db = await getDb()
+  const q = await db.query(
+    `SELECT chat_id FROM telegram_identities WHERE workspace_id = $1 AND revoked_at IS NULL`,
+    [workspaceId]
+  )
+  if (!q.rows[0]) return
+  await send(
+    Number(q.rows[0].chat_id),
+    `Processing…\nPayable ${invoiceHash.slice(0, 18)}…\nPrivate analysis + encrypted Storage. You will get READY when policy decides.`
+  )
+}
+
 export async function notifyWorkspacePayable(
   workspaceId: string,
   body: {
@@ -177,7 +191,7 @@ export async function notifyWorkspacePayable(
     vendor?: string | null
     amount_units?: string | number | null
     remittance?: string
-    why?: string[]
+    why?: string[] | unknown
     duplicate?: boolean
   }
 ) {
@@ -190,29 +204,79 @@ export async function notifyWorkspacePayable(
   if (!q.rows[0]) return
   const chatId = Number(q.rows[0].chat_id)
   if (body.duplicate) {
-    await send(chatId, `Duplicate payable. Hash already on this vault. 0 USDC.e moved.`)
+    await send(
+      chatId,
+      `DUPLICATE\n\nThis payable hash is already on this vault.\n0 USDC.e moved.`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: 'VIEW', url: `${CONSOLE}/app/inbox/${body.invoiceHash || ''}` }]],
+        },
+      }
+    )
     return
   }
   const decision = body.decision || body.status || 'unknown'
-  const why = (body.why || []).join('\n')
+  const why = Array.isArray(body.why) ? body.why.filter(Boolean).join('\n') : whyLine(body.why)
   const hash = body.invoiceHash || ''
-  const lines = [
-    decision === 'auto-pay' ? 'AUTO-PAY READY' : decision === 'blocked' ? 'BLOCKED' : 'OWNER APPROVAL REQUIRED',
-    `Vendor: ${body.vendor || '-'}`,
-    `Amount: ${usd(body.amount_units)}`,
-    `Recipient: ${body.remittance || '-'}`,
-    `Payable: ${hash.slice(0, 18)}…`,
-    why,
-  ]
-  const buttons =
-    decision === 'auto-pay'
-      ? [[{ text: 'PAY', callback_data: `pay:${shortHash(hash)}` }, { text: 'Open console', url: `${CONSOLE}/app/inbox/${hash}` }]]
-      : decision === 'blocked'
-        ? [[{ text: 'Open console', url: `${CONSOLE}/app/inbox/${hash}` }]]
-        : [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${hash}` }]]
-  await send(chatId, lines.filter(Boolean).join('\n'), {
-    reply_markup: { inline_keyboard: buttons },
-  })
+  const view = { text: 'VIEW', url: `${CONSOLE}/app/inbox/${hash}` }
+  if (decision === 'auto-pay') {
+    await send(
+      chatId,
+      [
+        'AUTO-PAY READY',
+        '',
+        `Vendor:\n${body.vendor || '-'}`,
+        '',
+        `Amount:\n${usd(body.amount_units)}`,
+        '',
+        `Why:\n${why || 'Trusted vendor\nKnown remittance\nWithin Band 0\nUnique payable'}`,
+      ].join('\n'),
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'PAY', callback_data: `pay:${shortHash(hash)}` }, { text: 'IGNORE', callback_data: `ign:${shortHash(hash)}` }],
+            [view],
+          ],
+        },
+      }
+    )
+    return
+  }
+  if (decision === 'blocked') {
+    await send(
+      chatId,
+      [
+        'BLOCKED',
+        '',
+        `Vendor:\n${body.vendor || '-'}`,
+        '',
+        `Amount:\n${usd(body.amount_units)}`,
+        '',
+        `Reason:\n${why || 'Policy denied this payable.'}`,
+        '',
+        '0 USDC.e moved.',
+      ].join('\n'),
+      { reply_markup: { inline_keyboard: [[view]] } }
+    )
+    return
+  }
+  await send(
+    chatId,
+    [
+      'OWNER APPROVAL REQUIRED',
+      '',
+      `Vendor:\n${body.vendor || '-'}`,
+      '',
+      `Amount:\n${usd(body.amount_units)}`,
+      '',
+      `Reason:\n${why || 'This payable is outside autonomous Band 0.'}`,
+    ].join('\n'),
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${hash}` }]],
+      },
+    }
+  )
 }
 
 async function bindFromCode(telegramUserId: string, chatId: number, username: string | undefined, raw: string) {
@@ -312,15 +376,19 @@ async function inspect(chatId: number, workspaceId: string, hash: string) {
   ]
   const decision = String(inv.decision || '')
   const canPay = (decision === 'auto-pay' || inv.status === 'clean') && inv.status !== 'paid' && inv.status !== 'flagged'
+  const view = { text: 'VIEW', url: `${CONSOLE}/app/inbox/${inv.invoice_hash}` }
   const buttons =
     canPay
       ? [
           [
             { text: 'PAY', callback_data: `pay:${shortHash(String(inv.invoice_hash))}` },
-            { text: 'Open console', url: `${CONSOLE}/app/inbox/${inv.invoice_hash}` },
+            view,
+            { text: 'IGNORE', callback_data: `ign:${shortHash(String(inv.invoice_hash))}` },
           ],
         ]
-      : [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${inv.invoice_hash}` }]]
+      : String(inv.decision) === 'blocked' || inv.status === 'blocked'
+        ? [[view]]
+        : [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${inv.invoice_hash}` }]]
   await send(chatId, lines.join('\n'), { reply_markup: { inline_keyboard: buttons } })
 }
 
@@ -328,29 +396,27 @@ async function help(chatId: number) {
   await send(
     chatId,
     [
-      'BURSAR Telegram is a workspace desk, not a key store.',
-      '/start — bind with a one-time Settings code',
-      '/workspace — which vault this chat is bound to',
-      '/attention — open payables',
-      '/inbox — same as attention',
-      '/review — exceptions',
+      'BURSAR Telegram is a first-class operations channel, not a command list.',
+      'Taps: PAY, VIEW, IGNORE, APPROVE IN APP.',
+      '/start CODE — bind with a one-time Settings code',
+      '/attention — what needs you',
       '/payments — recent paid hashes',
-      '/vendors — vendor memory',
-      '/help — this list',
       'To submit a payable, send vendor, amount, and a 0x remittance on 0G Aristotle USDC.e.',
       'PAY in this chat only runs Band-0 session pay. Owner approve / withdraw / policy stay on bursarx.vercel.app.',
     ].join('\n')
   )
 }
 
-export async function handleTelegramUpdate(update: TgUpdate) {
+export async function handleTelegramUpdate(update: TgUpdate, opts?: { alreadyDeduped?: boolean }) {
   if (!config.telegramBotToken) return { ok: false, error: 'telegram disabled' }
   const db = await getDb()
   const updateId = Number(update.update_id || 0)
-  if (updateId) {
-    const seen = await db.query(`SELECT update_id FROM telegram_updates WHERE update_id = $1`, [updateId])
-    if (seen.rows[0]) return { ok: true, duplicate: true }
-    await db.query(`INSERT INTO telegram_updates (update_id) VALUES ($1) ON CONFLICT DO NOTHING`, [updateId])
+  if (updateId && !opts?.alreadyDeduped) {
+    const inserted = await db.query(
+      `INSERT INTO telegram_updates (update_id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING update_id`,
+      [updateId]
+    )
+    if (!inserted.rows[0]) return { ok: true, duplicate: true }
   }
 
   const cb = update.callback_query
@@ -383,22 +449,40 @@ export async function handleTelegramUpdate(update: TgUpdate) {
         await send(
           chatId,
           [
-            `PAID ${usd(paid.moneyMoved)}`,
-            `Tx ${paid.hash}`,
-            paid.explorer,
+            'PAID ✓',
+            '',
+            usd(paid.moneyMoved),
+            '',
+            `Tx:\n${paid.hash}`,
+            '',
             `Vault ${paid.preVault} → ${paid.postVault}`,
-            `Vendor ${paid.preVendor} → ${paid.postVendor}`,
-          ].join('\n')
+          ].join('\n'),
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: 'VERIFY ON 0G', url: `${CONSOLE}/app/proof/${paid.hash}` },
+                  { text: 'CHAINSCAN', url: paid.explorer },
+                ],
+              ],
+            },
+          }
         )
       })()
       return { ok: true, paying: hash }
+    }
+    if (kind === 'ign' && hash) {
+      await answerCb(cb.id, 'Ignored')
+      await logAction(bound.ws.id, telegramUserId, 'ignore', { hash })
+      await send(chatId, `Ignored.\nPayable stays in the inbox. 0 USDC.e moved.`)
+      return { ok: true, ignored: hash }
     }
     if ((kind === 'open' || kind === 'review') && hash) {
       await answerCb(cb.id)
       await inspect(chatId, bound.ws.id, hash)
       return { ok: true }
     }
-    if ((kind === 'pay' || kind === 'open' || kind === 'review') && prefix && !hash) {
+    if ((kind === 'pay' || kind === 'open' || kind === 'review' || kind === 'ign') && prefix && !hash) {
       await answerCb(cb.id, 'Payable not in this workspace.')
       return { ok: true }
     }
@@ -521,10 +605,6 @@ export async function handleTelegramUpdate(update: TgUpdate) {
     return { ok: true }
   }
 
-  await send(
-    chatId,
-    'Received. Processing on 0G Storage and Direct TeeML. You will get AUTO-PAY, OWNER APPROVAL, or BLOCKED when it finishes. This chat cannot hold the owner key.'
-  )
   const pdf = payablePdf({
     vendor: parsed.vendor,
     remittance: parsed.remittance,
@@ -532,16 +612,15 @@ export async function handleTelegramUpdate(update: TgUpdate) {
     invoiceNumber: parsed.invoiceNumber,
     kind: 'telegram-request',
   })
-  const wsRef = bound.ws
-  const telegramUser = telegramUserId
-  void (async () => {
-    try {
-      const out = await ingestPayable({ ws: wsRef, pdf, source: 'telegram', kind: 'request', analyze: true })
-      const body = out.body as { invoiceHash?: string; duplicate?: boolean }
-      await logAction(wsRef.id, telegramUser, 'submit', { invoiceHash: body.invoiceHash, duplicate: body.duplicate })
-    } catch (e) {
-      await send(chatId, `Intake failed. ${e instanceof Error ? e.message : String(e)}. 0 USDC.e moved.`)
+  try {
+    const out = await acceptPayable({ ws: bound.ws, pdf, source: 'telegram', kind: 'request', analyze: true })
+    const body = out.body as { invoiceHash?: string; duplicate?: boolean }
+    await logAction(bound.ws.id, telegramUserId, 'submit', { invoiceHash: body.invoiceHash, duplicate: body.duplicate })
+    if (out.statusCode === 409) {
+      await send(chatId, `Duplicate payable. Hash already on this vault. 0 USDC.e moved.`)
     }
-  })()
+  } catch (e) {
+    await send(chatId, `Intake failed. ${e instanceof Error ? e.message : String(e)}. 0 USDC.e moved.`)
+  }
   return { ok: true, accepted: true }
 }

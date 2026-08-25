@@ -4,7 +4,7 @@ import { ethers } from 'ethers'
 import { config } from './config.ts'
 import { getDb, recordEvent } from './db.ts'
 import { payablePdf } from './artifact.ts'
-import { ingestPayable, analyzeStoredPayable } from './ingest.ts'
+import { analyzeStoredPayable, acceptPayable } from './ingest.ts'
 import { attentionFromRows, vendorMemoryFor } from './payable.ts'
 import { handleTelegramUpdate, issueTelegramBindCode, telegramStatus, unbindTelegram } from './telegram.ts'
 import { emailHealth, ingestEmailInbound } from './email.ts'
@@ -369,7 +369,7 @@ app.post('/payables', async (c) => {
     memo: body.memo,
     kind: body.kind || 'request',
   })
-  const out = await ingestPayable({
+  const out = await acceptPayable({
     ws,
     pdf,
     source: body.source || 'api',
@@ -392,7 +392,7 @@ app.post('/invoices', async (c) => {
     const raw = await c.req.arrayBuffer()
     pdf = Buffer.from(raw)
   }
-  const out = await ingestPayable({
+  const out = await acceptPayable({
     ws,
     pdf,
     source: 'pdf',
@@ -527,9 +527,18 @@ app.post('/integrations/telegram/webhook', async (c) => {
     const hdr = c.req.header('x-telegram-bot-api-secret-token')
     if (hdr !== config.telegramWebhookSecret) return c.json({ error: 'bad webhook secret' }, 401)
   }
-  const update = await c.req.json()
-  const out = await handleTelegramUpdate(update)
-  return c.json(out)
+  const update = await c.req.json() as { update_id?: number }
+  const updateId = Number(update.update_id || 0)
+  if (updateId) {
+    const db = await getDb()
+    const inserted = await db.query(
+      `INSERT INTO telegram_updates (update_id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING update_id`,
+      [updateId]
+    )
+    if (!inserted.rows[0]) return c.json({ ok: true, duplicate: true })
+  }
+  void handleTelegramUpdate(update, { alreadyDeduped: true }).catch((e) => console.error('[telegram webhook]', e))
+  return c.json({ ok: true })
 })
 
 app.post('/integrations/email/inbound', async (c) => {
