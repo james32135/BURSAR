@@ -1,4 +1,4 @@
-import { useConnectWallet, usePrivy, useWallets } from '@privy-io/react-auth'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
 import { LIVE } from '@/lib/live'
 import { isDemoMode, loadWorkspace } from '@/lib/workspace'
 import { ensureAristotle } from '@/lib/owner'
@@ -14,7 +14,6 @@ function expectedOwner() {
 
 export function WalletBar() {
   const { ready, authenticated, login, logout, user } = usePrivy()
-  const { connectWallet } = useConnectWallet()
   const { wallets } = useWallets()
   const wallet = wallets[0]
   const addr = (wallet?.address || user?.wallet?.address || '').toLowerCase()
@@ -42,7 +41,7 @@ export function WalletBar() {
     return (
       <button
         type="button"
-        onClick={() => connectOwner(connectWallet, login)}
+        onClick={() => connectOwner(login)}
         className="h-9 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--fg)]"
       >
         Connect owner
@@ -72,10 +71,10 @@ export function WalletBar() {
 }
 
 export function useOwnerWallet() {
-  const { authenticated } = usePrivy()
+  const { authenticated, user } = usePrivy()
   const { wallets } = useWallets()
   const wallet = wallets[0]
-  const addr = (wallet?.address || '').toLowerCase()
+  const addr = (wallet?.address || user?.wallet?.address || '').toLowerCase()
   const expected = expectedOwner()
   const isOwner = authenticated && Boolean(addr && expected && addr === expected)
   return { wallet, addr, isOwner, authenticated }
