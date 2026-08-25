@@ -19,7 +19,11 @@ export function Overview() {
   const att = attention.data || attentionFromInvoices(invoices, session?.remaining || '0')
   const stored = loadWorkspace()
   const demo = stored?.demo ?? isDemoMode()
-  const exceptions = invoices.filter((i) => i.status === 'flagged' || i.status === 'blocked')
+  const exceptions = invoices.filter((i) => i.status === 'flagged' || i.status === 'blocked' || i.pipeline === 'queued' || i.status === 'received')
+  const paid = invoices.filter((i) => i.pay_tx)
+  const security = (events.data?.events || []).filter((ev) =>
+    /block|denied|paused|revok|fail|duplicate|paying|confirmed/i.test(String(ev.kind))
+  )
 
   if (health.isError) {
     return (
@@ -38,9 +42,9 @@ export function Overview() {
             {vs?.paused ? 'Vault is paused.' : 'What needs my attention?'}
           </h1>
           <p className="mt-3 max-w-xl text-[var(--fg-muted)]">
-            {demo
+              {demo
               ? 'DEMO workspace (shared judge vault). Create your own from Get started.'
-              : 'Open payables first. Proof and chain internals stay one click away.'}
+              : 'What needs my attention. Then payable → decision → action → proof.'}
           </p>
         </div>
         <span className={`inline-flex rounded-[4px] border px-3 py-1 font-mono text-[10px] uppercase ${vs?.paused ? 'border-red-500/40 text-red-300' : 'border-emerald-500/40 text-emerald-300'}`}>
@@ -80,7 +84,7 @@ export function Overview() {
         </Link>
       </div>
 
-      <h2 className="font-display mt-12 text-xl font-bold">Exceptions</h2>
+      <h2 className="font-display mt-12 text-xl font-bold">Needs attention</h2>
       <ul className="mt-3 divide-y divide-[var(--border)] border-t border-[var(--border)]">
         {(exceptions.length ? exceptions : invoices.slice(0, 8)).map((inv) => (
           <li key={hashOf(inv)} className="flex items-center justify-between py-3">
@@ -98,15 +102,30 @@ export function Overview() {
         {!invoices.length && <li className="py-6 text-sm text-[var(--fg-muted)]">No payables yet. Connect an intake channel.</li>}
       </ul>
 
+      <h2 className="font-display mt-12 text-xl font-bold">Recent payments</h2>
+      <ul className="mt-3 divide-y divide-[var(--border)] border-t border-[var(--border)]">
+        {paid.slice(0, 6).map((inv) => (
+          <li key={hashOf(inv)} className="flex items-center justify-between py-3">
+            <Link to={'/app/inbox/' + hashOf(inv)} className="font-mono text-xs hover:underline">
+              {inv.vendor || hashOf(inv).slice(0, 12)} {usd(inv.amount_units)}
+            </Link>
+            <Link className="text-xs text-[#93c5fd] underline" to={'/app/proof/' + (inv.pay_tx || hashOf(inv))}>
+              Proof
+            </Link>
+          </li>
+        ))}
+        {!paid.length && <li className="py-6 text-sm text-[var(--fg-muted)]">No USDC.e has moved from this vault yet.</li>}
+      </ul>
+
       <div className="mt-10 flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">Agent</h2>
         <AuthorityBadge kind="agent" />
       </div>
       <p className="mt-2 text-sm">{session?.revoked ? 'Revoked' : session?.exists ? 'Session live. Cannot withdraw.' : 'Authorize a session from Get started.'}</p>
 
-      <h2 className="font-display mt-12 text-xl font-bold">Activity</h2>
+      <h2 className="font-display mt-12 text-xl font-bold">Security events</h2>
       <ul className="mt-3 divide-y divide-[var(--border)] border-t border-[var(--border)]">
-        {(events.data?.events || []).slice(0, 8).map((ev) => (
+        {(security.length ? security : events.data?.events || []).slice(0, 8).map((ev) => (
           <li key={ev.id} className="flex flex-wrap items-center justify-between gap-2 py-3 font-mono text-xs text-[var(--fg-muted)]">
             <span className="text-[var(--fg)]">{ev.kind}</span>
             <span>{ev.invoice_hash ? `${String(ev.invoice_hash).slice(0, 12)}...` : '-'}</span>

@@ -1,13 +1,13 @@
 const STEPS = [
   { id: 'received', label: 'Received' },
-  { id: 'encrypting', label: 'Encrypting' },
-  { id: 'stored', label: 'Stored' },
+  { id: 'encrypting', label: 'Encrypted' },
+  { id: 'stored', label: 'Storage verified' },
   { id: 'analyzing', label: 'Private analysis' },
-  { id: 'checking_vendor', label: 'Vendor' },
-  { id: 'checking_policy', label: 'Policy' },
-  { id: 'ready', label: 'Ready' },
-  { id: 'paying', label: 'Paying' },
-  { id: 'confirmed', label: 'Confirmed' },
+  { id: 'checking_vendor', label: 'Vendor check' },
+  { id: 'checking_policy', label: 'Policy check' },
+  { id: 'ready', label: 'Decision' },
+  { id: 'paying', label: 'Pay' },
+  { id: 'confirmed', label: 'Chain confirmed' },
   { id: 'verified', label: 'Proof verified' },
   { id: 'blocked', label: 'Blocked' },
 ] as const
@@ -20,7 +20,11 @@ export function PipelineStrip({
   events?: { kind: string }[]
 }) {
   const seen = new Set((events || []).map((e) => e.kind))
-  const current = pipeline || ''
+  let current = pipeline || ''
+  if (current === 'queued') current = 'received'
+  if (current === 'encrypted') current = 'encrypting'
+  if (seen.has('encrypting')) seen.add('encrypting')
+  if (pipeline === 'queued' || pipeline === 'received') seen.add('received')
   return (
     <ol className="mt-6 flex flex-wrap gap-1">
       {STEPS.filter((s) => s.id !== 'blocked' || current === 'blocked' || seen.has('blocked')).map((s) => {

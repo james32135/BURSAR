@@ -8,16 +8,22 @@ import { WalletBar } from '@/components/WalletBar'
 import { WorkflowRail } from '@/components/Product'
 import { isDemoMode, loadWorkspace } from '@/lib/workspace'
 
-const NAV = [
+const PRIMARY = [
   { to: '/app', end: true, label: 'Attention' },
   { to: '/app/inbox', label: 'Inbox' },
   { to: '/app/review', label: 'Review' },
   { to: '/app/payments', label: 'Payments' },
+  { to: '/app/proof', label: 'Proof' },
+]
+
+const SECONDARY = [
   { to: '/app/vendors', label: 'Vendors' },
   { to: '/app/policies', label: 'Policy' },
   { to: '/app/agent', label: 'Agent' },
-  { to: '/app/proof', label: 'Proof' },
+  { to: '/app/settings', label: 'Settings' },
 ]
+
+const NAV = [...PRIMARY, ...SECONDARY]
 
 export function AppShell() {
   const [open, setOpen] = useState(false)
@@ -39,7 +45,7 @@ export function AppShell() {
           </button>
           <Link to="/" className="font-display text-lg font-bold tracking-tight">BURSAR</Link>
           <nav className="ml-2 hidden min-w-0 items-center gap-0.5 overflow-x-auto lg:flex">
-            {NAV.map((item) => (
+            {PRIMARY.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -48,6 +54,21 @@ export function AppShell() {
                   cn(
                     'rounded-[4px] px-2.5 py-1.5 text-[13px] text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)]',
                     isActive && 'bg-white text-[#09090b]'
+                  )
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+            <span className="mx-1 h-4 w-px bg-[var(--border)]" aria-hidden />
+            {SECONDARY.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'rounded-[4px] px-2.5 py-1.5 text-[12px] text-[var(--fg-muted)]/80 transition-colors hover:text-[var(--fg)]',
+                    isActive && 'bg-white/10 text-white'
                   )
                 }
               >
@@ -64,9 +85,6 @@ export function AppShell() {
                 {paused ? 'PAUSED' : 'OPEN'} {usd(usdc)}
               </div>
             </div>
-            <Link to="/app/settings" className="hidden text-xs text-[var(--fg-muted)] hover:text-white lg:inline">
-              Settings
-            </Link>
             <WalletBar />
           </div>
         </div>
@@ -102,15 +120,6 @@ export function AppShell() {
               {item.label}
             </NavLink>
           ))}
-          <NavLink
-            to="/app/settings"
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              cn('rounded-[4px] px-3 py-2.5 text-sm text-[var(--fg-muted)]', isActive && 'bg-white text-[#09090b]')
-            }
-          >
-            Settings
-          </NavLink>
         </nav>
         <div className="mt-8">
           <WorkflowRail />

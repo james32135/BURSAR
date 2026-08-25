@@ -5,7 +5,6 @@ const STEPS = [
   { to: '/app', label: 'Attention' },
   { to: '/app/inbox', label: 'Inbox' },
   { to: '/app/review', label: 'Review' },
-  { to: '/app/policies', label: 'Policy' },
   { to: '/app/payments', label: 'Payment' },
   { to: '/app/proof', label: 'Proof' },
 ]

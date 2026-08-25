@@ -13,6 +13,7 @@ export const config = {
     '/api/workspace',
     '/api/workspace/:path*',
     '/api/verify/:path*',
+    '/api/invoices',
     '/api/invoices/:path*',
     '/api/vendors/:path*',
     '/api/queue',
