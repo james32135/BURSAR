@@ -47,7 +47,10 @@ export default function Onboarding() {
     if (!owner) return
     let cancelled = false
     listFactoryVaults(owner).then((list) => {
-      if (!cancelled) setFactoryVaults(list.map((v) => v.toLowerCase()))
+      if (cancelled) return
+      const addrs = list.map((v) => v.toLowerCase())
+      setFactoryVaults(addrs)
+      setVault((cur) => cur || addrs[addrs.length - 1] || '')
     }).catch(() => undefined)
     return () => { cancelled = true }
   }, [addr, user?.wallet?.address])
