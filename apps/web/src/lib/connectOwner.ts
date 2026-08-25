@@ -1,13 +1,6 @@
-import type { ConnectWalletModalOptions } from '@privy-io/react-auth'
-import { OWNER_WALLET_LIST } from './privy'
+import type { LoginModalOptions } from '@privy-io/react-auth'
 
-/** Injected MetaMask only. Never WalletConnect. Never add-chain. */
-export function connectOwner(
-  connectWallet: (options?: ConnectWalletModalOptions) => void,
-  login: () => void,
-) {
-  connectWallet({
-    walletList: [...OWNER_WALLET_LIST],
-    description: 'Owner wallet only. BURSAR never asks for a seed phrase.',
-  })
+/** Privy login (SIWE). connectWallet alone leaves authenticated=false. */
+export function connectOwner(login: (options?: LoginModalOptions) => void) {
+  login({ loginMethods: ['wallet'] })
 }
