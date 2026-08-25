@@ -16,8 +16,14 @@ export async function executeAllowedPay(ws: Workspace, hash: string): Promise<Pa
     return { ok: false, error: 'attestation missing', status: 400 }
   }
   const flags = typeof inv.flags === 'string' ? JSON.parse(String(inv.flags)) : inv.flags
+  if (inv.status === 'flagged' || inv.decision === 'owner-review') {
+    return { ok: false, error: 'owner-review', status: 400, flags }
+  }
   if (Array.isArray(flags) && flags.some((f: { severity: string }) => f.severity === 'block')) {
     return { ok: false, error: 'blocked', status: 400, flags }
+  }
+  if (Array.isArray(flags) && flags.some((f: { severity: string }) => f.severity === 'review')) {
+    return { ok: false, error: 'owner-review', status: 400, flags }
   }
   const remittance = String(inv.remittance || '')
   const amount = BigInt(String(inv.amount_units || '0'))
