@@ -126,3 +126,19 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS jobs_status_idx ON jobs (status, created_at);
 CREATE INDEX IF NOT EXISTS jobs_invoice_idx ON jobs (workspace_id, invoice_hash);
+
+-- Remembered obligations. Matching is not a blind transfer. Policy still decides.
+CREATE TABLE IF NOT EXISTS obligations (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  vendor TEXT NOT NULL,
+  remittance TEXT NOT NULL,
+  cadence TEXT NOT NULL DEFAULT 'monthly',
+  expected_min BIGINT,
+  expected_max BIGINT,
+  last_matched_hash TEXT,
+  last_matched_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS obligations_ws_idx ON obligations (workspace_id);
