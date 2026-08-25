@@ -112,8 +112,8 @@ export function InvoiceDetail() {
     onError: (e) => setErr(e instanceof Error ? e.message : String(e)),
   })
 
-  if (invQ.isLoading) return <p className="font-mono text-sm text-[var(--fg-muted)]">Loading invoice</p>
-  if (!inv) return <p>Invoice not found.</p>
+  if (invQ.isLoading) return <p className="font-mono text-sm text-[var(--fg-muted)]">Loading payable</p>
+  if (!inv) return <p>Payable not found.</p>
   const id = hashOf(inv)
   const amountLabel = usd(inv.amount_units)
 
@@ -153,7 +153,9 @@ export function InvoiceDetail() {
             {canPay ? <AuthorityBadge kind="agent" /> : needsOwner ? <AuthorityBadge kind="owner" /> : null}
           </div>
           <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">{ex.vendor_name || inv.vendor || 'Payable'}</h1>
-          <p className="mt-1 font-mono text-[10px] uppercase text-[var(--fg-muted)]">{inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.decision || inv.status}</p>
+          <p className="mt-1 font-mono text-[10px] uppercase text-[var(--fg-muted)]">
+            {inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.rail || 'usdc.e-16661'} · due {inv.dueDate || '—'} · {inv.decision || inv.status} · next {inv.nextAction || '—'}
+          </p>
         </div>
         {canAnalyze ? (
           <MagneticButton variant="ghost" disabled={analyze.isPending} onClick={() => analyze.mutate()}>
@@ -224,7 +226,7 @@ export function InvoiceDetail() {
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-display text-xl font-bold">Evidence</h2>
           <dl className="mt-4 grid grid-cols-[120px_1fr] gap-y-2 text-sm">
-            <dt className="text-[var(--fg-muted)]">Invoice ID</dt><dd className="font-mono text-xs">{ex.invoice_number || '-'}</dd>
+            <dt className="text-[var(--fg-muted)]">Payable ID</dt><dd className="font-mono text-xs">{ex.invoice_number || '-'}</dd>
             <dt className="text-[var(--fg-muted)]">Hash</dt><dd className="break-all font-mono text-xs">{id}</dd>
             <dt className="text-[var(--fg-muted)]">Storage</dt><dd className="break-all font-mono text-xs">{inv.storage_root}</dd>
             <dt className="text-[var(--fg-muted)]">Flow tx</dt>
