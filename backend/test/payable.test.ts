@@ -1,7 +1,21 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { screenInvoice } from '../src/screen.ts'
-import { decide, explainWhy, attentionFromRows } from '../src/payable.ts'
+import { decide, explainWhy, attentionFromRows, nextActionFor } from '../src/payable.ts'
+
+test('screen blocks extracted BTC rail', () => {
+  const blocked = screenInvoice({
+    invoiceHash: '0x1',
+    alreadyPaid: false,
+    alreadySeen: false,
+    extracted: { remittance_usdc_e: '0x1111111111111111111111111111111111111111', total_usd: '1', currency: 'BTC' },
+    remittanceAllowed: true,
+    amountUnits: 1000n,
+    band0Max: 200_000000n,
+  })
+  assert.equal(blocked.status, 'blocked')
+  assert.ok(blocked.flags.some((f) => f.code === 'unsupported-rail'))
+})
 
 test('screen still blocks bad remittance and unknown vendor', () => {
   const blocked = screenInvoice({
@@ -52,6 +66,24 @@ test('attention counts come from persisted rows, not decoration', () => {
   assert.equal(a.ownerReview, 1)
   assert.equal(a.blocked, 1)
   assert.equal(a.duplicate, 1)
+  assert.equal(a.paidRecently, 1)
   assert.equal(a.totalUnits, '6001')
   assert.equal(a.autoApprovedUnits, '1000')
+  assert.equal(a.waitingForYouUnits, '5000')
+  assert.equal(a.blockedUnits, '1')
+})
+
+test('next action is PAY OPEN WHY or PROOF, never AI says safe', () => {
+  assert.equal(nextActionFor({ status: 'clean', decision: 'auto-pay' }), 'PAY')
+  assert.equal(nextActionFor({ status: 'flagged', decision: 'owner-review' }), 'OPEN')
+  assert.equal(nextActionFor({ status: 'blocked', flags: [{ code: 'vendor-not-allowlisted', severity: 'block', detail: 'x' }] }), 'WHY')
+  assert.equal(nextActionFor({ status: 'paid', pay_tx: '0xabc' }), 'PROOF')
+})
+
+test('unsupported rail why is explicit', () => {
+  const why = explainWhy(
+    [{ code: 'unsupported-rail', severity: 'block', detail: 'UNSUPPORTED PAYMENT RAIL: BTC. BURSAR settles USDC.e on 0G Aristotle 16661 only.' }],
+    'blocked'
+  )
+  assert.match(why[0], /UNSUPPORTED PAYMENT RAIL/)
 })
