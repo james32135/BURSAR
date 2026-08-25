@@ -49,6 +49,18 @@ export class BursarClient {
     form.set('file', new Blob([pdf]), 'invoice.pdf')
     return this.req('/invoices?analyze=' + (analyze ? '1' : '0'), { method: 'POST', body: form })
   }
+  submitPayable(body: { vendor: string; remittance: string; amountUsd: string; invoiceNumber?: string; memo?: string; kind?: string }) {
+    return this.req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  }
+  attention() {
+    return this.req('/attention')
+  }
+  vendorMemory() {
+    return this.req('/vendors/memory')
+  }
+  payAllowed() {
+    return this.req('/queue/pay-allowed', { method: 'POST' })
+  }
   pay(hash: string) {
     return this.req('/invoices/' + hash + '/pay', { method: 'POST' })
   }

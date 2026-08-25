@@ -32,15 +32,20 @@ async function api(path, init = {}) {
 
 const TOOLS = [
   { name: 'submit_invoice', description: 'Upload invoice PDF from a local path. Direct TeeML binding.' },
-  { name: 'inspect_invoice', description: 'Fetch invoice metadata by sha256 hash.' },
-  { name: 'get_queue', description: 'List invoices in this workspace only.' },
+  { name: 'submit_payable', description: 'Create a payable from vendor, remittance, and amount. Same engine as PDF.' },
+  { name: 'inspect_invoice', description: 'Fetch payable metadata by sha256 hash.' },
+  { name: 'get_queue', description: 'List payables in this workspace only.' },
+  { name: 'attention', description: 'What needs attention: auto-pay, owner review, blocked.' },
+  { name: 'vendor_memory', description: 'Persisted vendor history for this workspace.' },
   { name: 'get_payment_queue', description: 'Alias of get_queue.' },
   { name: 'explain_flags', description: 'Explain screening flags.' },
+  { name: 'explain_decision', description: 'Why auto-pay, owner-review, or blocked.' },
   { name: 'propose_payment', description: 'Show WHAT/WHO/HOW MUCH without moving money.' },
   { name: 'request_approval', description: 'Same as propose_payment. Does not move money. Human must confirm.' },
   { name: 'execute_allowed_payment', description: 'Band-0 vault USDC.e pay if policy allows.' },
-  { name: 'get_payment_status', description: 'Pay tx, status, and amount for an invoice in this workspace.' },
-  { name: 'get_proof', description: 'Stored proof fields for an invoice.' },
+  { name: 'pay_allowed_sequential', description: 'Pay every Band-0 clean payable one session.pay each. No batch opcode.' },
+  { name: 'get_payment_status', description: 'Pay tx, status, and amount for a payable in this workspace.' },
+  { name: 'get_proof', description: 'Stored proof fields for a payable.' },
   { name: 'verify_payment', description: 'Chain-derived verification of pay tx or invoice hash.' },
 ]
 const FORBIDDEN = new Set(['setVendor', 'withdraw', 'setPaused', 'setBands', 'createSession', 'transferOwnership', 'ownerPay'])
@@ -52,10 +57,16 @@ function send(msg) {
 async function callTool(name, args) {
   if (FORBIDDEN.has(name)) return { error: 'forbidden' }
   if (name === 'get_payment_queue' || name === 'get_queue') return api('/queue')
-  if (name === 'inspect_invoice' || name === 'get_proof' || name === 'get_payment_status') {
+  if (name === 'attention') return api('/attention')
+  if (name === 'vendor_memory') return api('/vendors/memory')
+  if (name === 'pay_allowed_sequential') return api('/queue/pay-allowed', { method: 'POST' })
+  if (name === 'inspect_invoice' || name === 'get_proof' || name === 'get_payment_status' || name === 'explain_decision') {
     const inv = await api('/invoices/' + args.hash)
     if (name === 'get_payment_status') {
       return { hash: args.hash, status: inv.status, pay_tx: inv.pay_tx, amount_units: inv.amount_units, remittance: inv.remittance }
+    }
+    if (name === 'explain_decision') {
+      return { hash: args.hash, status: inv.status, decision: inv.decision, why: inv.why, flags: inv.flags }
     }
     return inv
   }
@@ -82,6 +93,21 @@ async function callTool(name, args) {
     const form = new FormData()
     form.set('file', new Blob([pdf]), 'invoice.pdf')
     return api('/invoices?analyze=1', { method: 'POST', body: form })
+  }
+  if (name === 'submit_payable') {
+    return api('/payables', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        vendor: args.vendor,
+        remittance: args.remittance,
+        amountUsd: args.amountUsd || args.amount,
+        invoiceNumber: args.invoiceNumber,
+        memo: args.memo,
+        kind: args.kind || 'request',
+        source: 'mcp',
+      }),
+    })
   }
   return { error: 'unknown tool' }
 }
