@@ -47,7 +47,7 @@ Band 0 (session): $200. Band 1 (owner): $10,000.
 ## Production
 
 - API: [`https://bursar-api.onrender.com`](https://bursar-api.onrender.com/health)
-- Console: [`https://bursarx.vercel.app`](https://bursarx.vercel.app). If Root Directory is `apps/web`, do not set Install to `cd apps/web && npm ci`. Use `sh scripts/vercel-install.sh` (works at repo root or inside `apps/web`).
+- Console: [`https://bursarx.vercel.app`](https://bursarx.vercel.app). Vercel Root Directory must be `apps/web`. Install is `npm install` (not `cd apps/web && npm ci`). Build is `npm run build`. Output is `dist`. The API stays on Render.
 
 ## Local run
 

@@ -29,8 +29,8 @@ export const LIVE = {
       invoice: '0x33ea8d12c9f892c31debf29c34f5a41c776219a0e2f7a0f6cff2b8f2c4bc754a',
     },
     {
-      label: 'Vault deploy',
-      tx: '0x9cd27adb5b8ff8920048cb75649f82d199f59b9cd9cd3e707f29ad8cc613fa21',
+      label: 'Owner-workspace Band-0 pay',
+      tx: '0x0290bcb024eeba773d9f97c493e8e6abb0da4191606feec9e8cf0ffff7919f49',
     },
   ],
 } as const
