@@ -154,7 +154,10 @@ async function agentCallReverts(
     return { fn, reverted: false, reason: 'call-succeeded' }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    const reason = msg.includes('NotOwner')
+    const selector = msg.match(/data="(0x[0-9a-f]{8})/i)?.[1]
+    const reason = selector === '0x30cd7471'
+      ? 'NotOwner'
+      : msg.includes('NotOwner')
       ? 'NotOwner'
       : msg.includes('NotAgent')
         ? 'NotAgent'
