@@ -69,6 +69,7 @@ _render_status.py
 .DS_Store
 Thumbs.db
 *.log
+*.tgz
 .vscode/
 .idea/
 .vercel/

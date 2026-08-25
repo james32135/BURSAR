@@ -106,6 +106,7 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
 
 export async function memoryFlags(input: {
   workspaceId: string
+  invoiceHash?: string
   vendor: string
   remittance: string
   amountUnits: bigint | null
@@ -117,8 +118,9 @@ export async function memoryFlags(input: {
     const dup = await db.query(
       `SELECT invoice_hash FROM invoices
        WHERE workspace_id = $1 AND vendor = $2 AND extracted::text ILIKE $3
+         AND invoice_hash <> $4
        LIMIT 1`,
-      [input.workspaceId, input.vendor, `%"invoice_number":"${input.invoiceNumber}"%`]
+      [input.workspaceId, input.vendor, `%"invoice_number":"${input.invoiceNumber}"%`, input.invoiceHash || '']
     )
     if (dup.rows[0]) {
       flags.push({

@@ -190,6 +190,7 @@ export async function verifyPayment(id: string) {
     goProof: storageProof,
     didMoneyMove: true,
     source: 'chain+storagescan+go-proof',
-    notFrom: ['render-disk', 'ts-proof-true', 'processResponse-boolean-alone'],
+    attestation: 'EIP-191 processResponse signer recovery (not a hardware quote)',
+    notFrom: ['render-disk', 'ts-proof-true', 'processResponse-boolean-alone', 'hardware-tee-quote'],
   }
 }
