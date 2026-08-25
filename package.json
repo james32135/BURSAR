@@ -1,7 +1,0 @@
-{
-  "name": "bursar",
-  "private": true,
-  "engines": {
-    "node": "22.x"
-  }
-}
