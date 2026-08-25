@@ -97,6 +97,28 @@ export async function encryptUploadProve(pdf: Buffer, originalHash: string): Pro
   }
 }
 
+export async function downloadDecryptPdf(root: string): Promise<Buffer> {
+  if (!existsSync(config.goClient)) throw new Error(`go storage client missing: ${config.goClient}`)
+  const dir = mkdtempSync(join(tmpdir(), 'bursar-open-'))
+  const encPath = join(dir, 'downloaded.enc')
+  const proof = await run(config.goClient, [
+    'download',
+    '--indexer',
+    config.indexer,
+    '--root',
+    root,
+    '--file',
+    encPath,
+    '--proof',
+  ])
+  const goProofOk = proof.code === 0 && proof.stderr.includes('Succeeded to validate the downloaded file')
+  if (!goProofOk) throw new Error(`go proof failed: ${proof.stderr.slice(-500)}`)
+  const encBytes = readFileSync(encPath)
+  const out = tryDecrypt(encBytes, { privateKey: config.eciesPk })
+  if (!out.decrypted || !out.bytes) throw new Error('decrypt failed')
+  return Buffer.from(out.bytes)
+}
+
 export async function goProofDownload(root: string): Promise<{ ok: boolean; log: string }> {
   if (!existsSync(config.goClient)) return { ok: false, log: 'missing-go-client' }
   const dir = mkdtempSync(join(tmpdir(), 'bursar-proof-'))
