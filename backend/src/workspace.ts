@@ -208,6 +208,21 @@ export async function workspaceStats(workspaceId: string) {
   }
 }
 
+export async function rotateWorkspaceSession(ws: Workspace) {
+  const db = await getDb()
+  const sessionId = ethers.hexlify(randomBytes(32))
+  await db.query(`UPDATE workspaces SET session_id = $2 WHERE id = $1`, [ws.id, sessionId])
+  return {
+    id: ws.id,
+    owner: ws.owner,
+    vault: ws.vault,
+    sessionId,
+    agentAddress: ws.agentAddress,
+    demo: ws.demo,
+    note: 'Owner must createSession on-chain with this new id. The previous session id stays revoked and cannot be reused.',
+  }
+}
+
 export function publicWorkspace(ws: Workspace, agentToken?: string) {
   return {
     id: ws.id,

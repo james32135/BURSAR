@@ -137,3 +137,48 @@ export async function vaultState(ctx: VaultCtx) {
     usdc: (await usdc.balanceOf(ctx.vault)).toString(),
   }
 }
+
+async function agentCallReverts(
+  ctx: VaultCtx,
+  fn: 'withdraw' | 'setVendor' | 'setPaused' | 'setBands' | 'revokeSession',
+  args: unknown[]
+): Promise<{ fn: string; reverted: boolean; reason: string }> {
+  const wallet = new ethers.Wallet(ctx.sessionPk, getProvider())
+  const vault = getVault(ctx, wallet)
+  try {
+    if (fn === 'withdraw') await vault.withdraw.staticCall(args[0], args[1])
+    else if (fn === 'setVendor') await vault.setVendor.staticCall(args[0], args[1])
+    else if (fn === 'setPaused') await vault.setPaused.staticCall(args[0])
+    else if (fn === 'setBands') await vault.setBands.staticCall(args[0], args[1])
+    else await vault.revokeSession.staticCall(args[0])
+    return { fn, reverted: false, reason: 'call-succeeded' }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const reason = msg.includes('NotOwner')
+      ? 'NotOwner'
+      : msg.includes('NotAgent')
+        ? 'NotAgent'
+        : msg.split('\n')[0].slice(0, 180)
+    return { fn, reverted: true, reason }
+  }
+}
+
+export async function agentForbiddenCalls(ctx: VaultCtx & { owner?: string; agentAddress?: string }) {
+  const owner = ctx.owner || (await getVault(ctx).owner())
+  const one = 1n
+  const [withdraw, setVendor, setPaused, setBands, revokeSession] = await Promise.all([
+    agentCallReverts(ctx, 'withdraw', [owner, one]),
+    agentCallReverts(ctx, 'setVendor', [owner, true]),
+    agentCallReverts(ctx, 'setPaused', [true]),
+    agentCallReverts(ctx, 'setBands', [one, one]),
+    agentCallReverts(ctx, 'revokeSession', [ctx.sessionId]),
+  ])
+  const calls = [withdraw, setVendor, setPaused, setBands, revokeSession]
+  return {
+    agent: new ethers.Wallet(ctx.sessionPk).address,
+    expectedAgent: ctx.agentAddress || null,
+    allReverted: calls.every((c) => c.reverted),
+    calls,
+    note: 'The scoped agent key is not the owner. These owner-only writes must revert. This is a security property, not a missing feature.',
+  }
+}
