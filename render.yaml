@@ -20,22 +20,7 @@ services:
         fromDatabase:
           name: bursar-pg
           property: connectionString
-  - type: web
-    name: bursarx
-    runtime: static
-    rootDir: apps/web
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: PRIVY_APP_ID
-        sync: false
-    routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://bursar-api.onrender.com/:splat
-      - type: rewrite
-        source: /*
-        destination: /index.html
+# Product console is Vercel (bursarx.vercel.app), not this static service.
 
 databases:
   - name: bursar-pg
