@@ -75,7 +75,7 @@ const HEX_CELLS: Array<[number, number]> = []
   }
 })()
 
-/** BURSAR payable loop — original six-station desk, not EMBER continuity. */
+/** BURSAR payable loop — original six-station desk. */
 export function HeroDesk({ className, mode = 'idle' }: { className?: string; mode?: DeskMode }) {
   const ref = useRef<SVGSVGElement>(null)
   const reduce = useReducedMotion()

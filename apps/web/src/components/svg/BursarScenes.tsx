@@ -284,7 +284,7 @@ export function SvgVerify({ className }: { className?: string }) {
   )
 }
 
-/** Four layers of the finance desk — original BURSAR, not EMBER. */
+/** Four layers of the finance desk. */
 export function SvgArchitecture({ className }: { className?: string }) {
   return (
     <Scene title="BURSAR architecture: console over the payable engine, settling on Aristotle and 0G Storage" viewBox="0 0 560 360" className={className}>

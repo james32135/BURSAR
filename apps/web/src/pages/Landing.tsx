@@ -17,7 +17,7 @@ const PAIN = 'Invoices arrive. Nobody remembers the vendor. Policy lives in a sp
 const DESK = 'BURSAR intakes, checks, remembers, pays what policy allows, and proves it.'.split(' ')
 
 const FLOW = [
-  { t: 'Intake', d: 'PDF, API, or MCP. Telegram only when a bot token is set.' },
+    { t: 'Intake', d: 'PDF, API, MCP, or Telegram when the bot is live. Email is not shipped.' },
   { t: 'Direct TeeML', d: 'Vision 0gm-1.0-35b-a3b. Signed response recovered.' },
   { t: '0G Storage', d: 'Encrypted upload. Go client proves the download.' },
   { t: 'Policy', d: 'Vendor, band, session cap, pause, expiry, revoke.' },
