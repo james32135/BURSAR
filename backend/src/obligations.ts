@@ -15,6 +15,17 @@ export type Obligation = {
 }
 
 /** Remembered range around a typical bill. Matching is not a pay bypass. */
+export function amountInObligationRange(
+  amountUnits: bigint | null,
+  expectedMin: string | null,
+  expectedMax: string | null
+): boolean {
+  if (amountUnits == null) return true
+  if (expectedMin != null && amountUnits < BigInt(expectedMin)) return false
+  if (expectedMax != null && amountUnits > BigInt(expectedMax)) return false
+  return true
+}
+
 export function bandAroundUsd(amountUsd: string): { min: string; max: string } {
   const n = Number(String(amountUsd).replace(/,/g, ''))
   if (!Number.isFinite(n) || n <= 0) return { min: amountUsd, max: amountUsd }
@@ -130,15 +141,14 @@ export async function matchObligation(args: {
   )
   if (!q.rows[0]) return null
   const obligation = rowOf(q.rows[0])
-  let inRange = true
-  if (args.amountUnits != null) {
-    if (obligation.expectedMin != null && args.amountUnits < BigInt(obligation.expectedMin)) inRange = false
-    if (obligation.expectedMax != null && args.amountUnits > BigInt(obligation.expectedMax)) inRange = false
+  const inRange = amountInObligationRange(args.amountUnits, obligation.expectedMin, obligation.expectedMax)
+  // Matching is not a pay. Only in-range sightings count as the last remembered bill.
+  if (inRange) {
+    await db.query(`UPDATE obligations SET last_matched_hash=$2, last_matched_at=NOW() WHERE id=$1`, [
+      obligation.id,
+      args.invoiceHash,
+    ])
   }
-  await db.query(`UPDATE obligations SET last_matched_hash=$2, last_matched_at=NOW() WHERE id=$1`, [
-    obligation.id,
-    args.invoiceHash,
-  ])
   return {
     obligation,
     inRange,
