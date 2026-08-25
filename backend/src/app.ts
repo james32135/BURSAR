@@ -6,7 +6,8 @@ import { getDb, recordEvent } from './db.ts'
 import { payablePdf } from './artifact.ts'
 import { ingestPayable } from './ingest.ts'
 import { attentionFromRows, vendorMemoryFor } from './payable.ts'
-import { handleTelegramUpdate } from './telegram.ts'
+import { handleTelegramUpdate, issueTelegramBindCode, telegramStatus, unbindTelegram } from './telegram.ts'
+import { executeAllowedPay } from './pay.ts'
 import { verifyPayment } from './verify.ts'
 import {
   onchainInvoice,
@@ -108,7 +109,9 @@ app.get('/health', async (c) => {
       mcp: true,
       sdk: true,
       telegram: Boolean(config.telegramBotToken),
+      telegramBot: config.telegramBotToken ? config.telegramBotUsername : null,
       email: false,
+      emailReason: 'No dedicated inbound mailbox or MX. Email intake is not live.',
       slack: false,
       discord: false,
     },
@@ -180,7 +183,9 @@ app.get('/product', async (c) => {
       mcp: true,
       sdk: true,
       telegram: Boolean(config.telegramBotToken),
+      telegramBot: config.telegramBotToken ? config.telegramBotUsername : null,
       email: false,
+      emailReason: 'No dedicated inbound mailbox or MX. Email intake is not live.',
       slack: false,
       discord: false,
     },
@@ -358,41 +363,10 @@ app.post('/invoices/:hash/pay', async (c) => {
   if (denied) return denied
   const ws = c.get('ws')
   const hash = c.req.param('hash')
-  const db = await getDb()
-  const rows = await db.query('SELECT * FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [ws.id, hash])
-  const inv = rows.rows[0]
-  if (!inv) return c.json({ error: 'not found' }, 404)
-  if (inv.status === 'paid') return c.json({ error: 'already paid' }, 409)
-  if (inv.attestation_ok !== true && inv.attestation_ok !== 't') return c.json({ error: 'attestation missing' }, 400)
-  const flags = typeof inv.flags === 'string' ? JSON.parse(inv.flags) : inv.flags
-  if (Array.isArray(flags) && flags.some((f: { severity: string }) => f.severity === 'block')) {
-    return c.json({ error: 'blocked', flags }, 400)
+  const result = await executeAllowedPay(ws, hash)
+  if (result.ok === false) {
+    return c.json({ error: result.error, flags: result.flags, result: result.result }, result.status || 400)
   }
-  const remittance = String(inv.remittance || '')
-  const amount = BigInt(String(inv.amount_units || '0'))
-  const vs = await vaultState(ws)
-  if (amount > BigInt(vs.band0Max)) return c.json({ error: 'over-band0', amount: amount.toString(), band0Max: vs.band0Max }, 400)
-  if (!(await vendorAllowed(ws, remittance))) return c.json({ error: 'vendor-not-allowlisted' }, 400)
-  await db.query("UPDATE invoices SET pipeline='paying', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [ws.id, hash])
-  await recordEvent(ws.id, hash, 'paying', { amount: amount.toString(), remittance })
-  const result = await sessionPay(ws, {
-    vendor: remittance,
-    amount,
-    invoiceHash: hash,
-    storageRoot: String(inv.storage_root),
-    responseHash: '0x' + String(inv.response_hash).replace(/^0x/, ''),
-    recoveredSigner: String(inv.recovered_signer),
-  })
-  if (!result.didMoneyMove) {
-    await recordEvent(ws.id, hash, 'pay-failed', result)
-    await db.query("UPDATE invoices SET pipeline='ready', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [ws.id, hash])
-    return c.json({ error: 'money-did-not-move', result }, 500)
-  }
-  await db.query(
-    "UPDATE invoices SET status='paid', pipeline='confirmed', pay_tx=$3, pay_session=$4, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2",
-    [ws.id, hash, result.hash, ws.sessionId]
-  )
-  await recordEvent(ws.id, hash, 'confirmed', result)
   return c.json({ ok: true, ...result })
 })
 
@@ -472,19 +446,35 @@ app.post('/invoices/:hash/confirm-pay', async (c) => {
   return c.json({ ok: true, invoiceHash: hash, vault: ws.vault, paid: true, tx: body.tx || null, vendor: payment.vendor })
 })
 
-app.post('/integrations/telegram', async (c) => {
+app.get('/integrations/telegram', async (c) => {
   const denied = await requireWorkspace(c)
   if (denied) return denied
   const ws = c.get('ws')
-  const body = await c.req.json<{ chatId?: string }>()
-  if (!body.chatId) return c.json({ error: 'chatId required' }, 400)
-  const db = await getDb()
-  await db.query(
-    `INSERT INTO integrations (workspace_id, kind, config) VALUES ($1,'telegram',$2::jsonb)
-     ON CONFLICT (workspace_id, kind) DO UPDATE SET config = $2::jsonb`,
-    [ws.id, JSON.stringify({ chatId: String(body.chatId) })]
-  )
-  return c.json({ ok: true, enabled: Boolean(config.telegramBotToken) })
+  return c.json(await telegramStatus(ws.id))
+})
+
+app.post('/integrations/telegram/bind-code', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  if (ws.demo) return c.json({ error: 'DEMO workspace cannot bind Telegram. Create your own workspace.' }, 400)
+  if (!config.telegramBotToken) return c.json({ error: 'telegram disabled' }, 503)
+  const issued = await issueTelegramBindCode(ws.id)
+  return c.json(issued)
+})
+
+app.post('/integrations/telegram/unbind', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  await unbindTelegram(ws.id)
+  return c.json({ ok: true })
+})
+
+app.post('/integrations/telegram', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  return c.json({ error: 'Use /integrations/telegram/bind-code. Do not bind by chat id or MCP token.' }, 400)
 })
 
 app.post('/integrations/telegram/webhook', async (c) => {
