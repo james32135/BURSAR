@@ -19,6 +19,11 @@ export type Invoice = {
   recovered_signer?: string | null
   response_hash?: string | null
   created_at?: string
+  source?: string
+  kind?: string
+  pipeline?: string
+  decision?: string
+  why?: string[]
 }
 
 export type Health = {
@@ -69,13 +74,40 @@ export const api = {
   health: () => fetch('/api/health').then((r) => r.json() as Promise<Health>),
   product: () => fetch('/api/product').then((r) => r.json()),
   queue: () => req('/queue') as Promise<{ invoices: Invoice[] }>,
+  attention: () =>
+    req('/attention') as Promise<{
+      new: number
+      autoPay: number
+      ownerReview: number
+      blocked: number
+      duplicate: number
+      totalUnits: string
+      autoApprovedUnits: string
+      payables: Invoice[]
+    }>,
+  vendorMemory: () => req('/vendors/memory') as Promise<{
+    vendors: Array<{
+      remittance: string
+      name: string
+      paymentCount: number
+      totalPaid: string
+      lastAmount: string | null
+      typicalAmount: string | null
+      firstSeen: string | null
+      blockCount: number
+      lastBlockReason: string | null
+    }>
+  }>,
   invoice: (hash: string) => req('/invoices/' + hash) as Promise<Invoice>,
   submit: (file: File) => {
     const form = new FormData()
     form.set('file', file)
     return req('/invoices?analyze=1', { method: 'POST', body: form })
   },
+  submitPayable: (body: { vendor: string; remittance: string; amountUsd: string; invoiceNumber?: string; memo?: string; kind?: string }) =>
+    req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   pay: (hash: string) => req('/invoices/' + hash + '/pay', { method: 'POST' }),
+  payAllowed: () => req('/queue/pay-allowed', { method: 'POST' }),
   confirmPay: (hash: string, tx?: string) =>
     req('/invoices/' + hash + '/confirm-pay', {
       method: 'POST',

@@ -66,6 +66,10 @@ export function Settings() {
         <dd className="break-all font-mono text-xs"><a className="underline" href={addrUrl(vault)}>{vault}</a></dd>
         <dt className="text-[var(--fg-muted)]">Session</dt>
         <dd className="break-all font-mono text-xs">{session}</dd>
+        <dt className="text-[var(--fg-muted)]">Telegram</dt>
+        <dd className="text-xs text-[var(--fg-muted)]">
+          Set TELEGRAM_BOT_TOKEN on the API. Send /bind with this workspace token, then a payment request with vendor, amount, and 0x remittance. The bot never receives the owner key.
+        </dd>
         <dt className="text-[var(--fg-muted)]">RPC</dt>
         <dd className="font-mono text-xs">{LIVE.rpc}</dd>
         <dt className="text-[var(--fg-muted)]">Model</dt>
@@ -74,7 +78,7 @@ export function Settings() {
       <div className="mt-10 grid gap-6 lg:grid-cols-2">
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-display text-xl font-bold">MCP</h2>
-          <p className="mt-2 text-sm text-[var(--fg-muted)]">Give an existing agent BURSAR access without treasury ownership.</p>
+          <p className="mt-2 text-sm text-[var(--fg-muted)]">Give an existing agent BURSAR access without treasury ownership. Tools: attention, submit_payable, explain_decision, execute_allowed_payment.</p>
           <pre className="mt-4 overflow-auto font-mono text-[11px] text-[var(--fg-muted)]">{MCP}</pre>
         </div>
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">

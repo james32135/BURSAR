@@ -73,7 +73,7 @@ export function Review() {
     <div>
       <PageHeader
         title="Approval queue"
-        body="BursarVault has no batch function. Allowed invoices can be paid one transaction each. Blocked invoices never move USDC.e."
+        body="BursarVault has no batch function. Allowed payables are paid one session.pay each. The UI shows why, not only BLOCKED."
         extra={<AuthorityBadge kind="agent" />}
       />
       <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -142,7 +142,7 @@ export function Review() {
               <span>{inv.vendor || '-'}</span>
               <span>{usd(inv.amount_units)}</span>
               <span className="font-mono text-xs">{flagsOf(inv)[0]?.code || '-'}</span>
-              <span className="text-xs text-[var(--fg-muted)]">{extractedOf(inv).due_date || '-'}</span>
+              <span className="text-xs text-[var(--fg-muted)]">{Array.isArray(inv.why) && inv.why[0] ? inv.why[0] : extractedOf(inv).due_date || '-'}</span>
               <span className="font-mono text-xs">{hashOf(inv).slice(0, 12)}...</span>
             </Link>
           </li>

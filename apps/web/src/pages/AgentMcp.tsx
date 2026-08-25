@@ -13,6 +13,8 @@ const bursar = new BursarClient({
 const health = await bursar.health()
 const policy = await bursar.policy()
 const submitted = await bursar.submitInvoice(pdfBytes, true)
+const attention = await bursar.attention()
+const memory = await bursar.vendorMemory()
 const queue = await bursar.queue()
 const invoice = await bursar.getInvoice(submitted.invoiceHash)
 const paid = await bursar.pay(submitted.invoiceHash)
@@ -23,12 +25,12 @@ const MCP = `# stdio MCP. Same HTTP surface as the console.
 node packages/mcp/src/server.mjs
 
 submit_invoice
-get_queue
-inspect_invoice
-request_approval
+submit_payable
+attention
+vendor_memory
+explain_decision
 execute_allowed_payment
-get_payment_status
-get_proof`
+pay_allowed_sequential`
 
 export function AgentMcp() {
   return (
