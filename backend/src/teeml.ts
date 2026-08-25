@@ -5,7 +5,7 @@ import { attestResponse } from './attestor.ts'
 import { extractJsonObject, sha256Hex } from './util.ts'
 
 const PROMPT =
-  'Extract this invoice as JSON only with keys: invoice_number, issue_date, vendor_name, vendor_email, remittance_usdc_e, description, qty, unit_amount, subtotal, tax, total_usd, chain_note. Do not invent fields.'
+  'Extract this payable as JSON only with keys: invoice_number, issue_date, due_date, vendor_name, vendor_email, remittance_usdc_e, description, qty, unit_amount, subtotal, tax, total_usd, currency, payment_rail, payable_kind, chain_note. payment_rail must be usdc.e-16661 if the remittance is a 0x address for USDC.e on 0G, otherwise the named rail (wire, ACH, SEPA, BTC, ETH). payable_kind is invoice, contractor, vendor-payment, subscription, api-bill, agent-expense, or recurring. Do not invent fields.'
 
 export type TeeMlResult = {
   provider: string

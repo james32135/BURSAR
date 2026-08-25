@@ -11,14 +11,19 @@ export function payablePdf(fields: {
   invoiceNumber: string
   memo?: string
   kind?: string
+  dueDate?: string
+  rail?: string
 }): Buffer {
   const lines = [
-    'INVOICE',
+    'PAYABLE',
     `Vendor: ${fields.vendor}`,
-    `Invoice #: ${fields.invoiceNumber}`,
+    `Number: ${fields.invoiceNumber}`,
     `Kind: ${fields.kind || 'invoice'}`,
     `Amount USD: ${fields.amountUsd}`,
+    `Currency: USDC.e`,
+    `Payment rail: ${fields.rail || 'usdc.e-16661'}`,
     `Remittance USDC.e: ${fields.remittance}`,
+    fields.dueDate ? `Due: ${fields.dueDate}` : '',
     fields.memo ? `Memo: ${fields.memo}` : '',
   ].filter(Boolean)
   const cmds = lines

@@ -6,15 +6,20 @@ export type Decision = 'auto-pay' | 'owner-review' | 'blocked'
 export type VendorMemory = {
   remittance: string
   name: string
+  trusted: boolean
   paymentCount: number
   totalPaid: string
   lastAmount: string | null
   lastPaidAt: string | null
   typicalAmount: string | null
+  typicalMin: string | null
+  typicalMax: string | null
   firstSeen: string | null
   blockCount: number
   lastBlockReason: string | null
   recipients: string[]
+  recipientChanged: boolean
+  frequency: string | null
 }
 
 export function decide(flags: Flag[], amountUnits: bigint | null, band0Max: bigint): Decision {
@@ -38,8 +43,23 @@ export function explainWhy(flags: Flag[], decision: Decision): string[] {
     if (f.code === 'over-band0') return `Owner review: amount exceeds Band 0. Session cannot auto-pay. ${f.detail}`
     if (f.code === 'recipient-changed') return `Owner review: vendor recipient changed. ${f.detail}`
     if (f.code === 'amount-anomaly') return `Owner review: amount is far from this vendor typical. ${f.detail}`
+    if (f.code === 'unsupported-rail') return f.detail
+    if (f.code === 'obligation-out-of-range') return `Owner review: ${f.detail}`
     return `${f.severity === 'block' ? 'Blocked' : 'Owner review'}: ${f.code} ${f.detail}`
   })
+}
+
+function frequencyLabel(paidAt: string[]): string | null {
+  if (paidAt.length < 2) return null
+  const times = paidAt.map((s) => Date.parse(s)).filter((n) => Number.isFinite(n)).sort((a, b) => a - b)
+  if (times.length < 2) return null
+  const span = times[times.length - 1] - times[0]
+  const avg = span / (times.length - 1)
+  const days = avg / 86_400_000
+  if (days >= 20 && days <= 40) return 'about monthly'
+  if (days >= 5 && days <= 10) return 'about weekly'
+  if (days >= 80 && days <= 100) return 'about quarterly'
+  return `about every ${Math.max(1, Math.round(days))} days`
 }
 
 export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory[]> {
@@ -50,25 +70,39 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
      ORDER BY created_at ASC`,
     [workspaceId]
   )
-  const map = new Map<string, VendorMemory & { amounts: bigint[] }>()
+  const map = new Map<
+    string,
+    VendorMemory & { amounts: bigint[]; paidAt: string[]; remCounts: Map<string, number> }
+  >()
   for (const row of rows.rows) {
     const rem = String(row.remittance).toLowerCase()
-    const cur = map.get(rem) || {
+    const nameKey = String(row.vendor || rem).trim() || rem
+    const key = nameKey.toLowerCase()
+    const cur = map.get(key) || {
       remittance: rem,
-      name: String(row.vendor || rem),
+      name: nameKey,
+      trusted: false,
       paymentCount: 0,
       totalPaid: '0',
       lastAmount: null,
       lastPaidAt: null,
       typicalAmount: null,
+      typicalMin: null,
+      typicalMax: null,
       firstSeen: String(row.created_at || ''),
       blockCount: 0,
       lastBlockReason: null,
-      recipients: [rem],
+      recipients: [],
+      recipientChanged: false,
+      frequency: null,
       amounts: [],
+      paidAt: [],
+      remCounts: new Map<string, number>(),
     }
     if (row.vendor) cur.name = String(row.vendor)
     if (!cur.firstSeen) cur.firstSeen = String(row.created_at || '')
+    cur.remCounts.set(rem, (cur.remCounts.get(rem) || 0) + 1)
+    if (!cur.recipients.includes(rem)) cur.recipients.push(rem)
     if (row.status === 'paid') {
       const amt = BigInt(String(row.amount_units || '0'))
       cur.paymentCount += 1
@@ -76,6 +110,7 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
       cur.lastAmount = amt.toString()
       cur.lastPaidAt = String(row.updated_at || row.created_at || '')
       cur.amounts.push(amt)
+      cur.paidAt.push(String(row.updated_at || row.created_at || ''))
     }
     if (row.status === 'blocked') {
       cur.blockCount += 1
@@ -83,23 +118,29 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
       const code = Array.isArray(flags) && flags[0]?.code ? String(flags[0].code) : 'blocked'
       cur.lastBlockReason = code
     }
-    map.set(rem, cur)
+    map.set(key, cur)
   }
   return [...map.values()].map((v) => {
     const sorted = [...v.amounts].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
     const mid = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null
+    const primary = [...v.remCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || v.remittance
     return {
-      remittance: v.remittance,
+      remittance: primary,
       name: v.name,
+      trusted: v.paymentCount > 0 && v.blockCount === 0 && v.recipients.length === 1,
       paymentCount: v.paymentCount,
       totalPaid: v.totalPaid,
       lastAmount: v.lastAmount,
       lastPaidAt: v.lastPaidAt,
       typicalAmount: mid == null ? null : mid.toString(),
+      typicalMin: sorted.length ? sorted[0].toString() : null,
+      typicalMax: sorted.length ? sorted[sorted.length - 1].toString() : null,
       firstSeen: v.firstSeen,
       blockCount: v.blockCount,
       lastBlockReason: v.lastBlockReason,
       recipients: v.recipients,
+      recipientChanged: v.recipients.length > 1,
+      frequency: frequencyLabel(v.paidAt),
     }
   })
 }
@@ -189,15 +230,37 @@ export function attentionFromRows(
   const ownerReview = invoices.filter((i) => i.status === 'flagged')
   const blocked = invoices.filter((i) => i.status === 'blocked')
   const duplicate = invoices.filter((i) => flagsOf(i).some((f) => f.code.startsWith('duplicate')))
+  const paid = invoices.filter((i) => i.status === 'paid' || Boolean(i.pay_tx))
   const totalUnits = open.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
   const autoUnits = autoPay.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const reviewUnits = ownerReview.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const blockedUnits = blocked.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const paidUnits = paid.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
   return {
     new: open.length,
     autoPay: autoPay.length,
     ownerReview: ownerReview.length,
     blocked: blocked.length,
     duplicate: duplicate.length,
+    paidRecently: paid.length,
     totalUnits: totalUnits.toString(),
     autoApprovedUnits: autoUnits.toString(),
+    waitingForYouUnits: reviewUnits.toString(),
+    blockedUnits: blockedUnits.toString(),
+    paidRecentUnits: paidUnits.toString(),
   }
+}
+
+export function nextActionFor(inv: {
+  status?: string
+  decision?: string | null
+  pay_tx?: unknown
+  flags?: unknown
+}): 'PAY' | 'OPEN' | 'WHY' | 'PROOF' | 'WAIT' {
+  if (inv.pay_tx || inv.status === 'paid') return 'PROOF'
+  const flags = Array.isArray(inv.flags) ? (inv.flags as Flag[]) : []
+  if (inv.status === 'blocked' || flags.some((f) => f.severity === 'block')) return 'WHY'
+  if (inv.status === 'flagged' || inv.decision === 'owner-review') return 'OPEN'
+  if (inv.status === 'clean' || inv.decision === 'auto-pay') return 'PAY'
+  return 'WAIT'
 }

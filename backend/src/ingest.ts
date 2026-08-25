@@ -6,6 +6,8 @@ import { extractInvoicePng } from './teeml.ts'
 import { parseUsdToUnits, sha256Bytes32 } from './util.ts'
 import { onchainInvoice, registerInvoice, vendorAllowed, vaultState } from './vault.ts'
 import { decide, explainWhy, memoryFlags } from './payable.ts'
+import { bandAroundUsd, matchObligation, upsertObligation } from './obligations.ts'
+import { normalizeKind } from './rails.ts'
 import type { Workspace } from './workspace.ts'
 
 export async function ingestPayable(args: {
@@ -224,6 +226,23 @@ async function finalizeAnalysis(
     invoiceNumber: tee.extracted?.invoice_number || '',
   })
   const flags: Flag[] = [...screened.flags, ...extra]
+  const matched =
+    remittance && tee.extracted?.vendor_name
+      ? await matchObligation({
+          workspaceId: ws.id,
+          vendor: tee.extracted.vendor_name,
+          remittance,
+          amountUnits,
+          invoiceHash,
+        })
+      : null
+  if (matched && !matched.inRange) {
+    flags.push({
+      code: 'obligation-out-of-range',
+      severity: 'review',
+      detail: matched.why,
+    })
+  }
   const status = flags.some((f) => f.severity === 'block')
     ? 'blocked'
     : flags.length
@@ -231,6 +250,22 @@ async function finalizeAnalysis(
       : 'clean'
   const decision = decide(flags, amountUnits, BigInt(vs.band0Max))
   const why = explainWhy(flags, decision)
+  if (matched?.inRange) why.unshift(matched.why)
+  const kindNorm = normalizeKind(tee.extracted?.payable_kind || kind)
+  if ((kindNorm === 'subscription' || kindNorm === 'recurring' || kindNorm === 'api-bill') && remittance && tee.extracted?.vendor_name) {
+    const remember = !matched ? decision !== 'blocked' : matched.inRange && decision === 'auto-pay'
+    if (remember) {
+      const band = bandAroundUsd(tee.extracted.total_usd || '0')
+      await upsertObligation({
+        workspaceId: ws.id,
+        vendor: tee.extracted.vendor_name,
+        remittance,
+        cadence: kindNorm === 'api-bill' ? 'monthly' : kindNorm === 'subscription' ? 'monthly' : 'recurring',
+        expectedMinUsd: band.min,
+        expectedMaxUsd: band.max,
+      }).catch(() => undefined)
+    }
+  }
   const pipeline = decision === 'blocked' ? 'blocked' : 'ready'
   const att = tee.attestation
   await db.query(
@@ -255,7 +290,7 @@ async function finalizeAnalysis(
       String(tee.processResponse),
       att.ok,
       source,
-      kind,
+      kindNorm,
       pipeline,
       decision,
       JSON.stringify(why),
@@ -267,7 +302,7 @@ async function finalizeAnalysis(
     invoice_hash: invoiceHash,
     workspaceId: ws.id,
     source,
-    kind,
+    kind: kindNorm,
     pipeline,
     decision,
     why,
