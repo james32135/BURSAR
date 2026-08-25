@@ -1,7 +1,8 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth'
+import { useConnectWallet, usePrivy, useWallets } from '@privy-io/react-auth'
 import { LIVE } from '@/lib/live'
 import { isDemoMode, loadWorkspace } from '@/lib/workspace'
 import { ensureAristotle } from '@/lib/owner'
+import { connectOwner } from '@/lib/connectOwner'
 import { useState } from 'react'
 
 function expectedOwner() {
@@ -13,6 +14,7 @@ function expectedOwner() {
 
 export function WalletBar() {
   const { ready, authenticated, login, logout, user } = usePrivy()
+  const { connectWallet } = useConnectWallet()
   const { wallets } = useWallets()
   const wallet = wallets[0]
   const addr = (wallet?.address || user?.wallet?.address || '').toLowerCase()
@@ -40,7 +42,7 @@ export function WalletBar() {
     return (
       <button
         type="button"
-        onClick={() => login()}
+        onClick={() => connectOwner(connectWallet, login)}
         className="h-9 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--fg)]"
       >
         Connect owner
