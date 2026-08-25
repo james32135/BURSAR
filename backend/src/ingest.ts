@@ -26,6 +26,12 @@ export async function ingestPayable(args: {
     [ws.id, invoiceHash]
   )
   if (existing.rows[0]) {
+    try {
+      const { notifyWorkspacePayable } = await import('./telegram.ts')
+      await notifyWorkspacePayable(ws.id, { invoiceHash, duplicate: true, status: String(existing.rows[0].status) })
+    } catch {
+      /* alerts must not fail ingest */
+    }
     return { statusCode: 409 as const, body: { duplicate: true, invoiceHash, status: existing.rows[0].status } }
   }
   const chain = await onchainInvoice(ws, invoiceHash)
@@ -119,32 +125,39 @@ export async function ingestPayable(args: {
     ]
   )
   await recordEvent(ws.id, invoiceHash, pipeline === 'blocked' ? 'blocked' : 'ready', { status, flags, decision, why })
+  const body = {
+    invoiceHash,
+    invoice_hash: invoiceHash,
+    workspaceId: ws.id,
+    source,
+    kind,
+    pipeline,
+    decision,
+    why,
+    storage: stored,
+    registerTx,
+    extraction: tee.extracted,
+    extracted: tee.extracted,
+    vendor: tee.extracted?.vendor_name || null,
+    remittance,
+    amount_units: amountUnits == null ? null : amountUnits.toString(),
+    attestation: att,
+    processResponse: tee.processResponse,
+    originalPostHash: tee.originalPostHash,
+    requestHalfNote: 'broker rewrites request; original POST sha256 is not the signed request half',
+    flags,
+    status,
+    providerUrl: tee.providerUrl,
+    model: tee.model,
+  }
+  try {
+    const { notifyWorkspacePayable } = await import('./telegram.ts')
+    await notifyWorkspacePayable(ws.id, body)
+  } catch {
+    /* alerts must not fail ingest */
+  }
   return {
     statusCode: 200 as const,
-    body: {
-      invoiceHash,
-      invoice_hash: invoiceHash,
-      workspaceId: ws.id,
-      source,
-      kind,
-      pipeline,
-      decision,
-      why,
-      storage: stored,
-      registerTx,
-      extraction: tee.extracted,
-      extracted: tee.extracted,
-      vendor: tee.extracted?.vendor_name || null,
-      remittance,
-      amount_units: amountUnits == null ? null : amountUnits.toString(),
-      attestation: att,
-      processResponse: tee.processResponse,
-      originalPostHash: tee.originalPostHash,
-      requestHalfNote: 'broker rewrites request; original POST sha256 is not the signed request half',
-      flags,
-      status,
-      providerUrl: tee.providerUrl,
-      model: tee.model,
-    },
+    body,
   }
 }
