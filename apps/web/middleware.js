@@ -5,9 +5,17 @@
  */
 export const config = {
   matcher: [
+    '/api/health',
+    '/api/product',
+    '/api/attention',
+    '/api/policy',
+    '/api/events',
+    '/api/workspace',
+    '/api/workspace/:path*',
     '/api/verify/:path*',
     '/api/invoices/:path*',
     '/api/vendors/:path*',
+    '/api/queue',
     '/api/queue/:path*',
     '/api/integrations/:path*',
     '/api/workspaces',
