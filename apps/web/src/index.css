@@ -60,6 +60,14 @@
 
 .dark-pane .grain { mix-blend-mode: overlay; opacity: 0.04; }
 
+.lift {
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, background-color 0.3s ease;
+}
+.lift:hover {
+  transform: translateY(-4px);
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

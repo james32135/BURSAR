@@ -6,14 +6,24 @@ import { useReducedMotion } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
 import { MagneticButton } from '@/components/MagneticButton'
 import { SmoothScroll } from '@/components/SmoothScroll'
-import { OrbitSystem } from '@/components/OrbitSystem'
+import { HeroDesk } from '@/components/HeroDesk'
+import { SvgArchitecture, SvgEngine, SvgPain, SvgVerify } from '@/components/svg/BursarScenes'
 import { LIVE } from '@/lib/live'
-import { addrUrl, txUrl } from '@/lib/cn'
+import { addrUrl, shortHash, txUrl } from '@/lib/cn'
 
 gsap.registerPlugin(ScrollTrigger)
 
-const STORY =
-  'It handles payables without giving an agent unrestricted access to your treasury.'.split(' ')
+const PAIN = 'Invoices arrive. Nobody remembers the vendor. Policy lives in a spreadsheet.'.split(' ')
+const DESK = 'BURSAR intakes, checks, remembers, pays what policy allows, and proves it.'.split(' ')
+
+const FLOW = [
+  { t: 'Intake', d: 'PDF, API, or MCP. Telegram only when a bot token is set.' },
+  { t: 'Direct TeeML', d: 'Vision 0gm-1.0-35b-a3b. Signed response recovered.' },
+  { t: '0G Storage', d: 'Encrypted upload. Go client proves the download.' },
+  { t: 'Policy', d: 'Vendor, band, session cap, pause, expiry, revoke.' },
+  { t: 'USDC.e', d: 'BursarVault.transfer. Not Payment Layer. Not 0G Pay.' },
+  { t: 'Aristotle', d: '/verify reconstructs Paid + Transfer + merkle proof.' },
+]
 
 export function Landing() {
   const root = useRef<HTMLDivElement>(null)
@@ -23,33 +33,57 @@ export function Landing() {
     if (reduce || !root.current) return
     const ctx = gsap.context(() => {
       gsap.from('.hero-reveal', {
-        y: 24,
+        y: 40,
         opacity: 0,
+        filter: 'blur(10px)',
         duration: 0.85,
-        stagger: 0.07,
+        stagger: 0.09,
         ease: 'power3.out',
       })
-      const story = root.current!.querySelector('.story-pin')
-      if (story) {
-        const words = story.querySelectorAll('.word')
+      gsap.utils.toArray<HTMLElement>('.story-pin').forEach((section) => {
+        const words = section.querySelectorAll('.word')
         gsap.set(words, { opacity: 0.12 })
         gsap.to(words, {
           opacity: 1,
-          stagger: 0.05,
+          stagger: 0.04,
           ease: 'none',
-          scrollTrigger: { trigger: story, start: 'top top', end: '+=90%', pin: true, scrub: 0.6 },
+          scrollTrigger: { trigger: section, start: 'top top', end: '+=80%', pin: true, scrub: 0.6 },
         })
-      }
+      })
       const pipe = root.current!.querySelector('.flow-pin')
       if (pipe) {
         gsap.from(pipe.querySelectorAll('.flow-step'), {
-          y: 64,
-          opacity: 0.2,
-          stagger: 0.1,
+          y: 80,
+          opacity: 0.15,
+          stagger: 0.12,
           ease: 'none',
-          scrollTrigger: { trigger: pipe, start: 'top top', end: '+=120%', pin: true, scrub: 0.8 },
+          scrollTrigger: { trigger: pipe, start: 'top top', end: '+=140%', pin: true, scrub: 0.8 },
         })
       }
+      gsap.from('.arch-panel', {
+        y: 32,
+        opacity: 0,
+        duration: 0.7,
+        stagger: 0.1,
+        ease: 'power3.out',
+        scrollTrigger: { trigger: '.arch-section', start: 'top 70%' },
+      })
+      gsap.from('.bento-card', {
+        y: 28,
+        opacity: 0,
+        duration: 0.7,
+        stagger: 0.08,
+        ease: 'power3.out',
+        scrollTrigger: { trigger: '.bento-grid', start: 'top 78%' },
+      })
+      gsap.from('.proof-row', {
+        x: 16,
+        opacity: 0,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: 'power2.out',
+        scrollTrigger: { trigger: '#proof', start: 'top 72%' },
+      })
     }, root)
     return () => ctx.revert()
   }, [reduce])
@@ -57,113 +91,155 @@ export function Landing() {
   return (
     <SmoothScroll>
       <main ref={root} className="w-full max-w-full overflow-x-hidden bg-[#09090b] text-[#fafafa]">
-        <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-black/10 bg-white px-5 text-[#09090b] md:px-10">
+        <div className="grain" aria-hidden />
+
+        <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-black/10 bg-[#f4f4f5]/90 px-5 text-[#18181b] backdrop-blur-md md:px-10">
           <Link to="/" className="font-display text-lg font-bold tracking-tight">
             BURSAR
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-[#52525b] md:flex">
-            <a href="#work" className="hover:text-[#09090b]">How it works</a>
-            <a href="#proof" className="hover:text-[#09090b]">Proof</a>
-            <Link to="/agent" className="hover:text-[#09090b]">MCP / SDK</Link>
+            <a href="#story" className="hover:text-[#09090b]">
+              Story
+            </a>
+            <a href="#work" className="hover:text-[#09090b]">
+              How it works
+            </a>
+            <a href="#proof" className="hover:text-[#09090b]">
+              Proof
+            </a>
+            <Link to="/agent" className="hover:text-[#09090b]">
+              MCP / SDK
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
-            <Link to="/start" className="hidden h-9 items-center rounded-[4px] border border-[#09090b]/20 px-3 text-xs font-medium md:inline-flex">
+            <Link
+              to="/start"
+              className="hidden h-9 items-center rounded-[4px] border border-[#09090b]/20 px-3 text-xs font-medium md:inline-flex"
+            >
               Get started
             </Link>
-            <Link to="/app" className="inline-flex h-9 items-center rounded-[4px] bg-[#09090b] px-3 text-xs font-medium text-white">
+            <MagneticButton href="/app" className="h-9 bg-[#09090b] px-3 text-xs uppercase tracking-wide text-white">
               Open console
-            </Link>
+            </MagneticButton>
           </div>
         </header>
 
-        <section className="relative min-h-[100dvh] pt-16 md:grid md:grid-cols-2">
-          <div className="flex flex-col justify-between bg-white px-6 py-16 text-[#09090b] md:px-12 md:py-20">
-            <div>
-              <p className="hero-reveal font-mono text-[10px] uppercase tracking-[0.22em] text-[#71717a]">
-                The vault pays · the agent works
-              </p>
-              <h1 className="hero-reveal font-display mt-6 max-w-xl text-[clamp(2.4rem,4.4vw,4.4rem)] font-bold leading-[0.98] tracking-[-0.05em]">
-                Your finance agent can do the work. Your policy controls the money.
-              </h1>
-              <p className="hero-reveal mt-6 max-w-md text-base leading-relaxed text-[#52525b]">
-                Recurring payables enter BURSAR. Direct TeeML reads them privately. Vendor memory and vault policy decide. Allowed USDC.e moves. Risk is blocked. Proof lives on 0G Aristotle.
-              </p>
-              <div className="hero-reveal mt-8 flex flex-wrap gap-3">
-                <Link to="/start" className="inline-flex h-11 items-center gap-2 rounded-[4px] bg-[#09090b] px-5 text-sm font-medium text-white">
-                  Get started <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link to="/agent" className="inline-flex h-11 items-center rounded-[4px] border border-[#09090b]/20 px-5 text-sm font-medium">
-                  Connect agent
-                </Link>
-              </div>
-            </div>
-            <div className="hero-reveal mt-16 grid gap-6 border-t border-[#09090b]/10 pt-8 font-mono text-[10px] uppercase tracking-[0.16em] sm:grid-cols-3">
-              <div>
-                <div className="text-[#09090b]">Intake from work</div>
-                <div className="mt-2 text-[#71717a]">PDF · API · MCP</div>
-              </div>
-              <div>
-                <div className="text-[#09090b]">Remember vendors</div>
-                <div className="mt-2 text-[#71717a]">Recipient · amount · blocks</div>
-              </div>
-              <div>
-                <div className="text-[#09090b]">Prove on 0G</div>
-                <div className="mt-2 text-[#71717a]">Storage · TeeML · ChainScan</div>
-              </div>
-            </div>
-          </div>
-          <div className="relative min-h-[70vh] overflow-hidden bg-[#09090b] md:min-h-[100dvh]">
-            <p className="absolute left-6 top-6 z-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[#a1a1aa]">
-              Certified on Aristotle 16661
+        <section className="grid min-h-[100dvh] grid-cols-1 lg:grid-cols-2">
+          <div className="flex flex-col justify-center bg-[#f4f4f5] px-6 pb-16 pt-24 text-[#18181b] md:px-12">
+            <p className="hero-reveal mb-4 text-xs font-medium uppercase tracking-[0.22em] text-[#52525b]">
+              The vault pays · the agent works
             </p>
-            <OrbitSystem />
+            <h1 className="hero-reveal font-display max-w-2xl text-[clamp(2.3rem,4.2vw,3.7rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-balance">
+              Your finance agent can do the work. Your policy controls the money.
+            </h1>
+            <p className="hero-reveal mt-6 max-w-md text-base leading-relaxed text-[#52525b]">
+              Recurring payables enter BURSAR. Direct TeeML reads them privately. Vendor memory and vault policy decide.
+              Allowed USDC.e moves. Risk is blocked. Proof lives on 0G Aristotle.
+            </p>
+            <div className="hero-reveal mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/start"
+                className="inline-flex h-11 items-center gap-2 rounded-[4px] bg-[#18181b] px-5 text-sm font-medium text-white"
+              >
+                Get started <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/agent"
+                className="inline-flex h-11 items-center rounded-[4px] border border-[#18181b]/20 px-5 text-sm font-medium"
+              >
+                Connect agent
+              </Link>
+            </div>
+            <dl className="hero-reveal mt-10 grid max-w-lg grid-cols-3 gap-px overflow-hidden rounded-[4px] border border-[#18181b]/10 bg-[#18181b]/10">
+              {[
+                { k: 'Intake', v: 'from work' },
+                { k: 'Decide', v: 'from policy' },
+                { k: 'Prove', v: 'on 0G' },
+              ].map((b) => (
+                <div key={b.k} className="bg-[#f4f4f5] px-4 py-3">
+                  <dt className="font-display text-sm font-bold tracking-tight">{b.k}</dt>
+                  <dd className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#71717a]">{b.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div className="relative flex min-h-[62dvh] items-center justify-center overflow-hidden bg-[#09090b] px-6 py-16 lg:min-h-[100dvh] lg:py-0">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_55%_42%,rgba(37,99,235,0.2),transparent_62%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_78%)]" />
+            <div className="absolute left-6 top-24 flex items-center gap-2 md:left-10">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2563eb]" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2563eb]" />
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#71717a]">
+                Certified on Aristotle 16661
+              </span>
+            </div>
+            <HeroDesk className="relative z-10 w-full max-w-[min(88vw,600px)]" />
           </div>
         </section>
 
-        <section className="story-pin flex min-h-[100dvh] items-center bg-[#09090b] px-6 md:px-12">
-          <h2 className="font-display mx-auto max-w-5xl text-4xl font-bold tracking-tight md:text-6xl">
-            {STORY.map((w, i) => (
-              <span key={i} className="word mr-[0.28em] inline-block">{w}</span>
-            ))}
-          </h2>
+        <section id="story" className="story-pin flex min-h-[100dvh] flex-col justify-center px-6 py-24 md:px-12">
+          <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
+            <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
+              {PAIN.map((w, i) => (
+                <span key={`p-${i}`} className="word mr-[0.3em] inline-block">
+                  {w}
+                </span>
+              ))}
+            </h2>
+            <SvgPain />
+          </div>
+        </section>
+
+        <section className="story-pin flex min-h-[100dvh] flex-col justify-center bg-[#111113] px-6 py-24 md:px-12">
+          <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
+            <SvgEngine />
+            <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
+              {DESK.map((w, i) => (
+                <span key={`d-${i}`} className="word mr-[0.3em] inline-block">
+                  {w}
+                </span>
+              ))}
+            </h2>
+          </div>
         </section>
 
         <section className="bg-[#09090b] px-6 py-32 md:px-12 md:py-48">
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 md:grid-cols-6 md:grid-rows-2">
-            <article className="rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-4 md:row-span-2">
-              <h3 className="font-display text-3xl font-bold tracking-tight">The object is a payable</h3>
+          <div className="bento-grid mx-auto grid max-w-6xl grid-cols-1 gap-3 md:grid-cols-6 md:grid-rows-2">
+            <article className="bento-card lift rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-4 md:row-span-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#2563eb]">01 · Object</p>
+              <h3 className="font-display mt-3 text-3xl font-bold tracking-tight">The object is a payable</h3>
               <p className="mt-4 max-w-md text-[#a1a1aa]">
-                Not a PDF app. A payable can be an invoice, a contractor request, a renewal, or an agent expense. Every one hits the same engine: identity, extraction, vendor memory, policy, pay or block, proof.
+                Not a PDF app. A payable can be an invoice, a contractor request, a renewal, or an agent expense. Every
+                one hits the same engine: identity, extraction, vendor memory, policy, pay or block, proof.
               </p>
             </article>
-            <article className="rounded-[4px] border border-white/10 p-8 md:col-span-2">
-              <h3 className="font-display text-xl font-bold">Owner wallet</h3>
-              <p className="mt-3 text-sm text-[#a1a1aa]">Creates the vault, funds it, sets policy, pauses, withdraws.</p>
+            <article className="bento-card lift rounded-[4px] border border-white/10 p-8 md:col-span-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#71717a]">02 · Owner</p>
+              <h3 className="font-display mt-3 text-xl font-bold">Owner wallet</h3>
+              <p className="mt-3 text-sm text-[#a1a1aa]">Creates the vault, funds it, sets policy, pauses, withdraws. Never a seed phrase.</p>
             </article>
-            <article className="rounded-[4px] bg-[#2563eb] p-8 text-white md:col-span-2">
-              <h3 className="font-display text-xl font-bold">Scoped agent</h3>
+            <article className="bento-card lift rounded-[4px] bg-[#2563eb] p-8 text-white md:col-span-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/70">03 · Agent</p>
+              <h3 className="font-display mt-3 text-xl font-bold">Scoped agent</h3>
               <p className="mt-3 text-sm text-white/80">Ingests, analyzes, auto-pays Band 0. Never withdraws. Never owns the key.</p>
             </article>
           </div>
         </section>
 
-        <section id="work" className="flow-pin flex min-h-[100dvh] flex-col justify-center bg-[#09090b] px-6 md:px-12">
-          <div className="mx-auto w-full max-w-6xl">
-            <h2 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
-              Payable. Private AI. Vendor memory. Policy. Vault. USDC.e. Proof.
-            </h2>
-            <div className="mt-12 flex gap-2 overflow-x-auto md:grid md:grid-cols-6 md:gap-3 md:overflow-visible">
-              {[
-                { t: 'Intake', d: 'PDF, API, or MCP. Telegram only when TELEGRAM_BOT_TOKEN is set.' },
-                { t: 'Direct TeeML', d: 'Vision 0gm-1.0-35b-a3b. Signed response recovered.' },
-                { t: '0G Storage', d: 'Encrypted upload. Go client proves the download.' },
-                { t: 'Policy', d: 'Vendor, band, session cap, pause, expiry, revoke.' },
-                { t: 'USDC.e', d: 'BursarVault.transfer. Not Payment Layer. Not 0G Pay.' },
-                { t: 'Aristotle', d: '/verify reconstructs Paid + Transfer + merkle proof.' },
-              ].map((s) => (
-                <div key={s.t} className="flow-step min-w-[220px] rounded-[4px] border border-white/10 bg-[#111113] p-5 md:min-w-0">
-                  <h3 className="font-display text-lg font-bold">{s.t}</h3>
-                  <p className="mt-2 text-sm text-[#a1a1aa]">{s.d}</p>
+        <section id="work" className="flow-pin flex min-h-[100dvh] flex-col justify-center px-6 py-20 md:px-12">
+          <div className="mx-auto w-full max-w-5xl">
+            <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">From payable to sealed proof.</h2>
+            <p className="mt-4 max-w-lg text-[#a1a1aa]">One pipeline. Six beats. Nothing left to hope.</p>
+            <div className="mt-12 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {FLOW.map((s, i) => (
+                <div key={s.t} className="flow-step lift rounded-[4px] border border-white/10 bg-[#111113] p-5">
+                  <div className="font-mono text-[10px] uppercase tracking-widest text-[#2563eb]">
+                    {String(i + 1).padStart(2, '0')}
+                  </div>
+                  <h3 className="font-display mt-3 text-lg font-bold">{s.t}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#d4d4d8]">{s.d}</p>
                 </div>
               ))}
             </div>
@@ -173,37 +249,71 @@ export function Landing() {
           </div>
         </section>
 
-        <section id="proof" className="bg-[#09090b] px-6 py-32 md:px-12 md:py-48">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">Open the chain. Do not trust a screenshot.</h2>
-            <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
-              {LIVE.proofs.map((p) => (
-                <li key={p.tx} className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-sm">{p.label}</span>
-                  <a className="font-mono text-xs text-[#93c5fd] hover:text-white" href={txUrl(p.tx)}>
-                    {p.tx}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-6 font-mono text-xs text-[#a1a1aa]">
-              Factory{' '}
-              <a className="text-[#93c5fd]" href={addrUrl(LIVE.factory)}>
-                {LIVE.factory}
-              </a>
-            </p>
+        <section id="proof" className="px-6 py-28 md:px-12 md:py-36">
+          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">Open the chain. Do not trust a screenshot.</h2>
+              <p className="mt-4 max-w-md text-[#a1a1aa]">
+                Paid, USDC.e Transfer, and Go merkle proof must agree. The explorer is the source of truth.
+              </p>
+              <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
+                {LIVE.proofs.map((p) => (
+                  <li key={p.tx} className="proof-row flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-sm">{p.label}</span>
+                    <a className="font-mono text-xs text-[#93c5fd] hover:text-white" href={txUrl(p.tx)}>
+                      {shortHash(p.tx, 8)}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 font-mono text-xs text-[#a1a1aa]">
+                Factory{' '}
+                <a className="text-[#93c5fd]" href={addrUrl(LIVE.factory)}>
+                  {LIVE.factory}
+                </a>
+              </p>
+            </div>
+            <SvgVerify />
           </div>
         </section>
 
-        <section className="bg-[#09090b] px-6 py-24 md:px-12 md:py-32">
-          <div className="mx-auto max-w-5xl rounded-[4px] border border-white/10 bg-[#111113] px-8 py-16 md:px-16">
-            <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">Create your workspace.</h2>
+        <section id="architecture" className="arch-section border-t border-white/10 bg-[#0c0c0e] px-6 py-28 md:px-12 md:py-36">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="arch-panel font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
+              Privacy, memory, policy. One desk.
+            </h2>
+            <p className="arch-panel mt-4 max-w-xl text-[#a1a1aa]">
+              You watch exceptions. The agent does the clerk work. The vault remains yours.
+            </p>
+            <div className="arch-panel mt-14">
+              <SvgArchitecture />
+            </div>
+            <div className="arch-panel mt-10 grid gap-3 md:grid-cols-3">
+              {[
+                { t: 'Private AI', d: 'Direct TeeML vision on the invoice. Not a hardware quote. Not “0G cannot see your data.”' },
+                { t: 'Vendor intelligence', d: 'Wallet, typical amount, last pay, recipient changes, prior blocks — from persisted history.' },
+                { t: 'Policy boundary', d: 'Band 0 auto-pay. Owner review at the edge. Block on duplicate, wrong vendor, malformed proof.' },
+              ].map((c) => (
+                <div key={c.t} className="lift rounded-[4px] border border-white/10 p-6">
+                  <h3 className="font-display text-xl font-bold">{c.t}</h3>
+                  <p className="mt-2 text-sm text-[#a1a1aa]">{c.d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-6 py-24 md:px-12 md:py-32">
+          <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[4px] border border-white/10 bg-[#111113] px-8 py-16 md:px-16">
+            <div className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-[#2563eb]/20 blur-3xl" />
+            <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">Create your workspace.</h2>
             <p className="mt-4 max-w-md text-[#a1a1aa]">
-              Connect the owner wallet. Deploy a vault. Authorize a scoped agent. Connect an intake channel. Receive a payable.
+              Connect the owner wallet. Deploy a vault. Authorize a scoped agent. Receive a payable.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <MagneticButton href="/start" variant="ghost">
+              <MagneticButton href="/start">
                 Get started
+                <ArrowRight className="h-4 w-4" />
               </MagneticButton>
               <MagneticButton href="/agent" variant="ghost">
                 MCP / SDK
@@ -212,7 +322,7 @@ export function Landing() {
           </div>
         </section>
 
-        <footer className="flex flex-col gap-3 border-t border-white/10 bg-[#09090b] px-6 py-10 text-sm text-[#a1a1aa] md:flex-row md:items-center md:justify-between md:px-12">
+        <footer className="flex flex-col gap-3 border-t border-white/10 px-6 py-10 text-sm text-[#a1a1aa] md:flex-row md:items-center md:justify-between md:px-12">
           <span className="font-display font-bold text-white">BURSAR</span>
           <span>Autonomous finance desk. The vault is the final authority.</span>
         </footer>
