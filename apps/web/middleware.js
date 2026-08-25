@@ -3,7 +3,17 @@
  * Vite on Vercel only auto-routed one-segment /api/* handlers.
  * Injects the MCP token for DEMO (x-bursar-demo) from server env. Never VITE_*.
  */
-export const config = { matcher: '/api/:path*' }
+export const config = {
+  matcher: [
+    '/api/verify/:path*',
+    '/api/invoices/:path*',
+    '/api/vendors/:path*',
+    '/api/queue/:path*',
+    '/api/integrations/:path*',
+    '/api/workspaces',
+    '/api/workspaces/:path*',
+  ],
+}
 
 export default async function middleware(request) {
   const incoming = new URL(request.url)
