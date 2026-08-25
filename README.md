@@ -6,13 +6,18 @@ Your agent handles the finance work. Your policy controls the money. The agent n
 
 ## Product
 
-Each user gets a workspace: owner wallet → `BursarFactory` → isolated `BursarVault` → policy → vendor allowlist → scoped agent session → **payable** (PDF, API, MCP, or Telegram) → USDC.e pay or block → `/verify`.
+Each user gets a workspace: owner wallet → `BursarFactory` → isolated `BursarVault` → policy → vendor allowlist → scoped agent session → **payable** (PDF, API, MCP, SDK, or Telegram) → USDC.e pay or block → `/verify`.
 
 The PDF is one input adapter. The product object is the payable.
 
 The labeled **DEMO** vault is a judge door. It is not the default workspace.
 
-Console: Workspace, Inbox, Review, Payments, Vendors, Policy, Agent, Proof, Settings.
+Console primary: Attention, Inbox, Review, Payments, Proof.
+Secondary: Vendors, Policy, Agent, Settings.
+
+Telegram `@BURSARxbot` is a first-class ops channel (PAY / VIEW / IGNORE). The webhook acknowledges immediately and processes asynchronously.
+
+Email intake is coming later. It is not live.
 
 Owner wallet (Privy) is for create, bind, session, vendors, pause, fund, and owner pay. Band-0 session pay, analysis, queue, and `/verify` do not open MetaMask.
 

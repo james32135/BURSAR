@@ -19,7 +19,8 @@ const queue = await bursar.queue()
 const invoice = await bursar.getInvoice(submitted.invoiceHash)
 const paid = await bursar.pay(submitted.invoiceHash)
 const status = await bursar.getPaymentStatus(submitted.invoiceHash)
-const proof = await bursar.verify(paid.hash)`
+const proof = await bursar.verify(paid.hash)
+const ready = await bursar.waitForDecision(submitted.invoiceHash)`
 
 const MCP = `# stdio MCP. Same HTTP surface as the console.
 node packages/mcp/src/server.mjs

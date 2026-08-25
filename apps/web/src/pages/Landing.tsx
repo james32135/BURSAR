@@ -17,12 +17,13 @@ const PAIN = 'Invoices arrive. Nobody remembers the vendor. Policy lives in a sp
 const DESK = 'BURSAR intakes, checks, remembers, pays what policy allows, and proves it.'.split(' ')
 
 const FLOW = [
-    { t: 'Intake', d: 'PDF, API, MCP, or Telegram when the bot is live. Email is not shipped.' },
-  { t: 'Direct TeeML', d: 'Vision 0gm-1.0-35b-a3b. Signed response recovered.' },
-  { t: '0G Storage', d: 'Encrypted upload. Go client proves the download.' },
-  { t: 'Policy', d: 'Vendor, band, session cap, pause, expiry, revoke.' },
-  { t: 'USDC.e', d: 'BursarVault.transfer. Not Payment Layer. Not 0G Pay.' },
-  { t: 'Aristotle', d: '/verify reconstructs Paid + Transfer + merkle proof.' },
+  { t: 'Source', d: 'PDF, API, MCP, SDK, or Telegram. Email intake coming later.' },
+  { t: 'Private AI', d: 'Direct TeeML. processResponse recovers the registered signer via EIP-191.' },
+  { t: 'Memory', d: 'Vendor remittance, typical amount, last pay, recipient changes.' },
+  { t: 'Policy', d: 'Band 0 auto-pay. Band 1 owner review. Pause, expiry, revoke.' },
+  { t: 'Action', d: 'The agent pays what is allowed. Dangerous payables stop.' },
+  { t: 'Money', d: 'USDC.e transfer from this workspace vault only.' },
+  { t: 'Proof', d: 'Storage root, Go proof, Paid event, ChainScan, /verify.' },
 ]
 
 export function Landing() {
@@ -127,14 +128,14 @@ export function Landing() {
         <section className="grid min-h-[100dvh] grid-cols-1 lg:grid-cols-2">
           <div className="flex flex-col justify-center bg-[#f4f4f5] px-6 pb-16 pt-24 text-[#18181b] md:px-12">
             <p className="hero-reveal mb-4 text-xs font-medium uppercase tracking-[0.22em] text-[#52525b]">
-              The vault pays · the agent works
+              The autonomous finance desk for Web3 teams
             </p>
             <h1 className="hero-reveal font-display max-w-2xl text-[clamp(2.3rem,4.2vw,3.7rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-balance">
-              Your finance agent can do the work. Your policy controls the money.
+              Your team has money obligations. BURSAR handles the boring work.
             </h1>
             <p className="hero-reveal mt-6 max-w-md text-base leading-relaxed text-[#52525b]">
-              Recurring payables enter BURSAR. Direct TeeML reads them privately. Vendor memory and vault policy decide.
-              Allowed USDC.e moves. Risk is blocked. Proof lives on 0G Aristotle.
+              The agent can act. The vault enforces the rules. 0G handles private computation and decentralized storage.
+              Only allowed money moves. Every payment leaves a proof.
             </p>
             <div className="hero-reveal mt-8 flex flex-wrap gap-3">
               <Link
@@ -232,7 +233,7 @@ export function Landing() {
           <div className="mx-auto w-full max-w-5xl">
             <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">From payable to sealed proof.</h2>
             <p className="mt-4 max-w-lg text-[#a1a1aa]">One pipeline. Six beats. Nothing left to hope.</p>
-            <div className="mt-12 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-12 grid gap-3 md:grid-cols-3 lg:grid-cols-7">
               {FLOW.map((s, i) => (
                 <div key={s.t} className="flow-step lift rounded-[4px] border border-white/10 bg-[#111113] p-5">
                   <div className="font-mono text-[10px] uppercase tracking-widest text-[#2563eb]">
