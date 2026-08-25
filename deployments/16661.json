@@ -1,0 +1,46 @@
+{
+  "chainId": 16661,
+  "rpc": "https://evmrpc.0g.ai",
+  "explorer": "https://chainscan.0g.ai",
+  "contracts": {
+    "BursarVault": {
+      "address": "0xd572896BE92CDdb5cA1BeA7679eE2b995194710E",
+      "tx": "0x9cd27adb5b8ff8920048cb75649f82d199f59b9cd9cd3e707f29ad8cc613fa21",
+      "explorer": "https://chainscan.0g.ai/tx/0x9cd27adb5b8ff8920048cb75649f82d199f59b9cd9cd3e707f29ad8cc613fa21",
+      "addressUrl": "https://chainscan.0g.ai/address/0xd572896BE92CDdb5cA1BeA7679eE2b995194710E",
+      "compiler": "0.8.28",
+      "evm": "cancun",
+      "optimizerRuns": 200,
+      "constructor": {
+        "token": "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E",
+        "owner": "0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3",
+        "band0Max": "200000000",
+        "band1Max": "10000000000"
+      },
+      "note": "Production vault. Spike vaults 0x05A434b4… and 0xf8869042… are disposable and must not be used.",
+      "verified": true,
+      "verifyGuid": "eeff3c59-988c-4693-8dce-ad85712faa8b",
+      "verifyStatus": "Pass - Verified",
+      "sourceUrl": "https://chainscan.0g.ai/address/0xd572896BE92CDdb5cA1BeA7679eE2b995194710E",
+      "fundTx": "0xcdfe1e356630ee22f101d537637e464e4b4a7c53feb0d7516360949659d56ed0",
+      "spikeRecoverTx": "0x821a7796c430752aefe2e8cba83078397d7410e41bb76cecc279409de6e8cc0e",
+      "liveAllowPayTx": "0xabfd3ca520f25a761723316752a92d06894b957fa6148cbbbca28e0672d148c0",
+      "liveOwnerPayTx": "0x10ff7773b669fbabc24c2ed131a7ebab2c904a47c374e745b7075871614bc141",
+      "backendBand0PayTx": "0x6e3cff64939839eacf888ec92acef3a61825ed0ae624e09e77a9ca910d1de70b",
+      "chromeBand0PayTx": "0x817ff5010e0cb04293b2c0241e15e635cf5a2cc0e8e2511379c4ad0fef262e2b",
+      "chromeBand0Invoice": "0xc328eabde3fecf4dc88bd4c24ea7fff1f34f89d31c9025e96d926e14202326e1",
+      "chromeStorageFlow": "0x5a86ca16458f86100de33e8fa596fb7093ea8793445e9168002b3101490476eb",
+      "chromeTxSeq": 206016
+    },
+    "BursarFactory": {
+      "address": "0xEc0aEcF6C778f44AeA12ee17aFB38f4e0Af0A2A4",
+      "tx": "0x3ff08a8b4d1756439c80a8cfe5d3e47eb2fd81b12d0d9f13ec0278624667bac8",
+      "explorer": "https://chainscan.0g.ai/tx/0x3ff08a8b4d1756439c80a8cfe5d3e47eb2fd81b12d0d9f13ec0278624667bac8",
+      "addressUrl": "https://chainscan.0g.ai/address/0xEc0aEcF6C778f44AeA12ee17aFB38f4e0Af0A2A4",
+      "compiler": "0.8.28",
+      "evm": "cancun",
+      "optimizerRuns": 200,
+      "note": "Deploys an isolated BursarVault per workspace owner. Demo vault 0xd572… is pre-factory and labeled DEMO."
+    }
+  }
+}
