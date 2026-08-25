@@ -4,12 +4,14 @@ import { ethers } from 'ethers'
 import { config } from './config.ts'
 import { getDb, recordEvent } from './db.ts'
 import { payablePdf } from './artifact.ts'
-import { ingestPayable } from './ingest.ts'
+import { ingestPayable, analyzeStoredPayable } from './ingest.ts'
 import { attentionFromRows, vendorMemoryFor } from './payable.ts'
 import { handleTelegramUpdate, issueTelegramBindCode, telegramStatus, unbindTelegram } from './telegram.ts'
+import { emailHealth, ingestEmailInbound } from './email.ts'
 import { executeAllowedPay } from './pay.ts'
 import { verifyPayment } from './verify.ts'
 import {
+  agentForbiddenCalls,
   onchainInvoice,
   onchainPayment,
   sessionPay,
@@ -20,6 +22,7 @@ import {
 import {
   bindWorkspace,
   resumeWorkspace,
+  rotateWorkspaceSession,
   ensureDemoWorkspace,
   getWorkspaceByToken,
   publicWorkspace,
@@ -111,10 +114,9 @@ app.get('/health', async (c) => {
       sdk: true,
       telegram: Boolean(config.telegramBotToken),
       telegramBot: config.telegramBotToken ? config.telegramBotUsername : null,
-      email: false,
-      emailReason: 'No dedicated inbound mailbox or MX. Email intake is not live.',
       slack: false,
       discord: false,
+      ...emailHealth(),
     },
   })
 })
@@ -254,6 +256,22 @@ app.get('/workspace/stats', async (c) => {
   return c.json(await workspaceStats(c.get('ws').id))
 })
 
+app.get('/workspace/agent-bounds', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  return c.json(await agentForbiddenCalls(ws))
+})
+
+app.post('/workspace/rotate-session', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  if (ws.demo) return c.json({ error: 'DEMO session cannot be rotated' }, 400)
+  const rotated = await rotateWorkspaceSession(ws)
+  return c.json(rotated)
+})
+
 app.get('/policy', async (c) => {
   const denied = await requireWorkspace(c)
   if (denied) return denied
@@ -296,6 +314,14 @@ app.get('/invoices/:hash', async (c) => {
   const rows = await db.query('SELECT * FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [ws.id, hash])
   if (!rows.rows[0]) return c.json({ error: 'not found' }, 404)
   return c.json(presentInvoice(rows.rows[0]))
+})
+
+app.post('/invoices/:hash/analyze', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const out = await analyzeStoredPayable(ws, c.req.param('hash'))
+  return c.json(out.body, out.statusCode)
 })
 
 app.get('/attention', async (c) => {
@@ -504,6 +530,15 @@ app.post('/integrations/telegram/webhook', async (c) => {
   const update = await c.req.json()
   const out = await handleTelegramUpdate(update)
   return c.json(out)
+})
+
+app.post('/integrations/email/inbound', async (c) => {
+  const out = await ingestEmailInbound({
+    secret: c.req.header('x-bursar-email-secret') || '',
+    authorization: c.req.header('authorization'),
+    body: await c.req.json().catch(() => ({})),
+  })
+  return c.json(out.body, out.statusCode)
 })
 
 app.get('/verify/:id', async (c) => {
