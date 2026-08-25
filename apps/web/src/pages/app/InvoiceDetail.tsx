@@ -7,7 +7,7 @@ import { MagneticButton } from '@/components/MagneticButton'
 import { InvoicePaper } from '@/components/InvoicePaper'
 import { StatusChip } from '@/components/StatusChip'
 import { AuthorityBadge } from '@/components/Product'
-import { invoiceTrail, ProofTrail } from '@/components/ProofTrail'
+import { PipelineStrip } from '@/components/PipelineStrip'
 import { useState } from 'react'
 import { LIVE } from '@/lib/live'
 import { loadWorkspace } from '@/lib/workspace'
@@ -18,7 +18,8 @@ import { motion, AnimatePresence } from 'motion/react'
 export function InvoiceDetail() {
   const { hash = '' } = useParams()
   const qc = useQueryClient()
-  const invQ = useQuery({ queryKey: ['invoice', hash], queryFn: () => api.invoice(hash) })
+  const invQ = useQuery({ queryKey: ['invoice', hash], queryFn: () => api.invoice(hash), refetchInterval: 4000 })
+  const eventsQ = useQuery({ queryKey: ['events'], queryFn: api.events, refetchInterval: 4000 })
   const wsQ = useQuery({ queryKey: ['workspace'], queryFn: api.workspace, retry: false })
   const { isOwner, wallet } = useOwnerWallet()
   const [open, setOpen] = useState(false)
@@ -85,25 +86,27 @@ export function InvoiceDetail() {
   const amountLabel = usd(inv.amount_units)
 
   let cta = 'BLOCKED'
-  let why = flags.map((f) => f.detail).join(' ') || 'Policy denied. 0 USDC.e moved.'
+  let whyText = flags.map((f) => f.detail).join(' ') || 'Policy denied. 0 USDC.e moved.'
   if (inv.pay_tx) {
     cta = 'PAID'
-    why = 'USDC.e already moved for this invoice hash.'
+    whyText = 'USDC.e already moved for this payable hash.'
   } else if (canPay) {
     cta = 'PAY'
-    why = `Band 0 (${usd(band0)}). Vendor allowed. Session authorized. No owner signature.`
+    whyText = `Band 0 (${usd(band0)}). Vendor allowed. Session authorized. No owner signature.`
   } else if (over) {
     cta = 'REQUEST APPROVAL'
-    why = `${amountLabel} exceeds Band 0 (${usd(band0)}). The agent cannot auto-pay. Owner can pay from this screen.`
+    whyText = `${amountLabel} exceeds Band 0 (${usd(band0)}). The agent cannot auto-pay. Owner can pay from this screen.`
   } else if (overSession) {
-    why = `${amountLabel} exceeds session remaining (${usd(session?.remaining)}). OverCap. 0 USDC.e moved.`
+    whyText = `${amountLabel} exceeds session remaining (${usd(session?.remaining)}). OverCap. 0 USDC.e moved.`
   } else if (duplicate) {
-    why = 'Duplicate invoice hash on this vault. 0 USDC.e moved.'
+    whyText = 'Duplicate invoice hash on this vault. 0 USDC.e moved.'
   } else if (vendorBad) {
-    why = 'Remittance is not on this vault allowlist. The agent cannot add vendors. 0 USDC.e moved.'
+    whyText = 'Remittance is not on this vault allowlist. The agent cannot add vendors. 0 USDC.e moved.'
   } else if (paused) {
-    why = 'Vault is paused. Session pay will revert. 0 USDC.e moved.'
+    whyText = 'Vault is paused. Session pay will revert. 0 USDC.e moved.'
   }
+  const decisionLines = Array.isArray(inv.why) && inv.why.length ? inv.why : [whyText]
+  const mine = (eventsQ.data?.events || []).filter((e) => String(e.invoice_hash) === hash)
 
   return (
     <div>
@@ -114,7 +117,8 @@ export function InvoiceDetail() {
             <StatusChip status={inv.status} />
             {canPay ? <AuthorityBadge kind="agent" /> : over ? <AuthorityBadge kind="owner" /> : null}
           </div>
-          <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">{ex.vendor_name || inv.vendor || 'Invoice'}</h1>
+          <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">{ex.vendor_name || inv.vendor || 'Payable'}</h1>
+          <p className="mt-1 font-mono text-[10px] uppercase text-[var(--fg-muted)]">{inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.decision || inv.status}</p>
         </div>
         {canPay ? (
           <MagneticButton variant="seal" onClick={() => setOpen(true)}>PAY</MagneticButton>
@@ -126,7 +130,12 @@ export function InvoiceDetail() {
           <MagneticButton variant="ghost" disabled>{cta}</MagneticButton>
         )}
       </div>
-      <p className="mt-3 max-w-2xl text-sm text-[var(--fg-muted)]">{why}</p>
+      <div className="mt-3 max-w-2xl space-y-1">
+        {decisionLines.map((line) => (
+          <p key={line} className="text-sm text-[var(--fg-muted)]">{line}</p>
+        ))}
+      </div>
+      <PipelineStrip pipeline={inv.pipeline || inv.status} events={mine} />
       {err && <p className="mt-3 text-sm text-red-400">{err}</p>}
 
       <div className="mt-8">

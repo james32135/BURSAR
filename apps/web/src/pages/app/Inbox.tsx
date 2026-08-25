@@ -48,8 +48,8 @@ export function Inbox() {
   return (
     <div>
       <PageHeader
-        title="Invoice feed"
-        body="Real PDFs only. Encrypted to 0G Storage, read in Direct TeeML. No wallet prompt."
+        title="Payables"
+        body="PDF is one adapter. A payable can also arrive as an API or MCP request. Encrypted to 0G Storage, read in Direct TeeML. No wallet prompt."
         extra={<AuthorityBadge kind="agent" />}
       />
       <label
@@ -65,7 +65,7 @@ export function Inbox() {
           onFile(e.dataTransfer.files?.[0])
         }}
       >
-        <span className="font-medium">{busy ? 'Working: Storage proof + Direct TeeML' : 'Drop a vendor invoice PDF'}</span>
+        <span className="font-medium">{busy ? 'Received → encrypting → private analysis → vendor → policy' : 'Drop a vendor invoice PDF'}</span>
         <span className="mt-2 text-sm text-[var(--fg-muted)]">or choose a file. No mock records.</span>
         <input
           type="file"
@@ -76,6 +76,7 @@ export function Inbox() {
         />
       </label>
       {err && <p className="mt-3 border-l-2 border-red-500 pl-3 text-sm text-red-300">{err}</p>}
+      <PayableRequest onDone={(hash) => nav('/app/inbox/' + hash)} />
       <div className="mt-6 flex flex-wrap gap-2">
         <input
           value={q}
@@ -100,6 +101,7 @@ export function Inbox() {
           <li key={hashOf(inv)}>
             <Link to={'/app/inbox/' + hashOf(inv)} className="flex flex-wrap items-center justify-between gap-2 py-4 hover:bg-white/5">
               <span className="font-mono text-xs">{hashOf(inv).slice(0, 14)}...</span>
+              <span className="font-mono text-[10px] uppercase text-[var(--fg-muted)]">{inv.source || 'pdf'}</span>
               <span>{inv.vendor || '-'}</span>
               <span>{usd(inv.amount_units)}</span>
               <span className="flex items-center gap-2">
@@ -109,8 +111,43 @@ export function Inbox() {
             </Link>
           </li>
         ))}
-        {!rows.length && <li className="py-6 text-sm text-[var(--fg-muted)]">Inbox is empty. Submit a PDF.</li>}
+        {!rows.length && <li className="py-6 text-sm text-[var(--fg-muted)]">No payables. Drop a PDF or submit a request.</li>}
       </ul>
     </div>
+  )
+}
+
+function PayableRequest({ onDone }: { onDone: (hash: string) => void }) {
+  const [vendor, setVendor] = useState('Contoso Freight LLC')
+  const [amountUsd, setAmountUsd] = useState('0.001')
+  const [remittance, setRemittance] = useState('0x1111111111111111111111111111111111111111')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setErr('')
+    try {
+      const out = await api.submitPayable({ vendor, remittance, amountUsd, kind: 'request' })
+      onDone(out.invoiceHash || out.invoice_hash)
+    } catch (e) {
+      const body = (e as { body?: { duplicate?: boolean; invoiceHash?: string } }).body
+      if (body?.duplicate && body.invoiceHash) onDone(body.invoiceHash)
+      else setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form onSubmit={submit} className="mt-6 grid gap-3 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-4">
+      <p className="md:col-span-4 font-mono text-[10px] uppercase text-[var(--fg-muted)]">Payment request (API adapter)</p>
+      <input value={vendor} onChange={(e) => setVendor(e.target.value)} aria-label="Vendor" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 text-sm" />
+      <input value={amountUsd} onChange={(e) => setAmountUsd(e.target.value)} aria-label="Amount USD" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 text-sm" />
+      <input value={remittance} onChange={(e) => setRemittance(e.target.value)} aria-label="Remittance" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 font-mono text-xs" />
+      <button type="submit" disabled={busy} className="h-9 rounded-[4px] bg-white text-sm font-medium text-[#09090b] disabled:opacity-40">
+        {busy ? 'Analyzing' : 'Submit payable'}
+      </button>
+      {err && <p className="md:col-span-4 text-sm text-red-300">{err}</p>}
+    </form>
   )
 }
