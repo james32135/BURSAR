@@ -94,7 +94,7 @@ export function Settings() {
         <dd className="text-xs text-[var(--fg-muted)]">
           PDF {channels?.pdf ? 'on' : '—'} · API {channels?.api ? 'on' : '—'} · MCP {channels?.mcp ? 'on' : '—'} · SDK{' '}
           {channels?.sdk ? 'on' : '—'} · Telegram {channels?.telegram ? `live @${channels.telegramBot || 'BURSARxbot'}` : 'adapter only'} · Email{' '}
-          {channels?.email ? 'on' : 'not shipped'} · Slack/Discord {channels?.slack || channels?.discord ? 'on' : 'rejected'}
+          {channels?.email ? `live ${channels.emailAddress || ''}` : 'not live'} · Slack/Discord {channels?.slack || channels?.discord ? 'on' : 'rejected'}
         </dd>
         <dt className="text-[var(--fg-muted)]">Telegram</dt>
         <dd className="text-xs text-[var(--fg-muted)]">
@@ -145,7 +145,10 @@ export function Settings() {
         </dd>
         <dt className="text-[var(--fg-muted)]">Email</dt>
         <dd className="text-xs text-[var(--fg-muted)]">
-          {channels?.emailReason || 'Not shipped. No dedicated inbound mailbox or MX for this pass.'}
+          {channels?.email
+            ? `Inbound adapter live for ${channels.emailAddress}. Same TeeML + vault policy as PDF.`
+            : channels?.emailReason ||
+              'Not live. No dedicated inbound mailbox or MX. The API has POST /integrations/email/inbound; health stays false until EMAIL_INBOUND_SECRET and EMAIL_INBOUND_ADDRESS are set.'}
         </dd>
         <dt className="text-[var(--fg-muted)]">RPC</dt>
         <dd className="font-mono text-xs">{LIVE.rpc}</dd>

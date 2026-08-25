@@ -6,6 +6,7 @@ import { AuthorityBadge } from '@/components/Product'
 
 export function AgentPage() {
   const wsQ = useQuery({ queryKey: ['workspace'], queryFn: api.workspace })
+  const bounds = useQuery({ queryKey: ['agent-bounds'], queryFn: api.agentBounds, retry: false })
   const s = wsQ.data?.session
   const stats = wsQ.data?.stats
   const expiry = s?.expiry ? new Date(Number(s.expiry) * 1000).toISOString() : '-'
@@ -57,6 +58,15 @@ export function AgentPage() {
             <li>Cannot raise limits or unpause</li>
             <li>Cannot receive the owner key</li>
           </ul>
+          {bounds.data?.calls && (
+            <ul className="mt-4 space-y-1 font-mono text-[11px] text-red-300">
+              {bounds.data.calls.map((c) => (
+                <li key={c.fn}>
+                  {c.fn} {c.reverted ? `reverted ${c.reason}` : 'UNEXPECTED SUCCESS'}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
       <p className="mt-8 font-mono text-xs text-[var(--fg-muted)]">

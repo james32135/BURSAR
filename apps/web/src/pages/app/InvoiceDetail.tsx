@@ -44,6 +44,7 @@ export function InvoiceDetail() {
   const overSession = amountBn > remaining
   const canPay = Boolean(inv && inv.status === 'clean' && !inv.pay_tx && !blocked && !paused && !over && !overSession)
   const canOwnerPay = Boolean(inv && over && !inv.pay_tx && !blocked && !paused && !vendorBad && !duplicate && isOwner && inv.storage_root && inv.recovered_signer)
+  const canAnalyze = Boolean(inv && (inv.status === 'stored' || inv.pipeline === 'stored') && !inv.pay_tx)
   const vault = wsQ.data?.workspace?.vault || loadWorkspace()?.vault || LIVE.vault
 
   const pay = useMutation({
@@ -52,6 +53,15 @@ export function InvoiceDetail() {
       setOpen(false)
       const v = await api.verify(res.hash)
       setProof(v)
+      qc.invalidateQueries()
+    },
+    onError: (e) => setErr(e instanceof Error ? e.message : String(e)),
+  })
+
+  const analyze = useMutation({
+    mutationFn: () => api.analyzeInvoice(hash),
+    onSuccess: () => {
+      setErr('')
       qc.invalidateQueries()
     },
     onError: (e) => setErr(e instanceof Error ? e.message : String(e)),
@@ -124,7 +134,11 @@ export function InvoiceDetail() {
           <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">{ex.vendor_name || inv.vendor || 'Payable'}</h1>
           <p className="mt-1 font-mono text-[10px] uppercase text-[var(--fg-muted)]">{inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.decision || inv.status}</p>
         </div>
-        {canPay ? (
+        {canAnalyze ? (
+          <MagneticButton variant="ghost" disabled={analyze.isPending} onClick={() => analyze.mutate()}>
+            {analyze.isPending ? 'Analyzing leftover…' : 'Analyze leftover'}
+          </MagneticButton>
+        ) : canPay ? (
           <MagneticButton variant="seal" onClick={() => setOpen(true)}>PAY</MagneticButton>
         ) : over && !blocked && !inv.pay_tx ? (
           <MagneticButton variant="ghost" disabled={!canOwnerPay} onClick={() => setOwnerOpen(true)}>

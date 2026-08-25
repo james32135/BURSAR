@@ -58,6 +58,7 @@ export type Health = {
     telegramBot?: string | null
     email: boolean
     emailReason?: string
+    emailAddress?: string | null
     slack: boolean
     discord: boolean
   }
@@ -119,6 +120,21 @@ export const api = {
   submitPayable: (body: { vendor: string; remittance: string; amountUsd: string; invoiceNumber?: string; memo?: string; kind?: string }) =>
     req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   pay: (hash: string) => req('/invoices/' + hash + '/pay', { method: 'POST' }),
+  analyzeInvoice: (hash: string) => req('/invoices/' + hash + '/analyze', { method: 'POST' }),
+  agentBounds: () =>
+    req('/workspace/agent-bounds') as Promise<{
+      agent: string
+      allReverted: boolean
+      calls: { fn: string; reverted: boolean; reason: string }[]
+      note: string
+    }>,
+  rotateSession: () =>
+    req('/workspace/rotate-session', { method: 'POST' }) as Promise<{
+      sessionId: string
+      agentAddress: string
+      vault: string
+      note: string
+    }>,
   payAllowed: () =>
     req('/queue/pay-allowed', { method: 'POST' }) as Promise<{
       paid: { invoiceHash?: string; hash?: string; tx?: string; explorer?: string }[]
