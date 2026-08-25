@@ -37,6 +37,11 @@ CREATE TABLE IF NOT EXISTS invoices (
   register_tx TEXT,
   pay_tx TEXT,
   pay_session TEXT,
+  source TEXT NOT NULL DEFAULT 'pdf',
+  kind TEXT NOT NULL DEFAULT 'invoice',
+  pipeline TEXT,
+  decision TEXT,
+  decision_why JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (workspace_id, invoice_hash)
@@ -52,3 +57,11 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 CREATE INDEX IF NOT EXISTS events_invoice_idx ON events (invoice_hash);
+
+CREATE TABLE IF NOT EXISTS integrations (
+  workspace_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (workspace_id, kind)
+);

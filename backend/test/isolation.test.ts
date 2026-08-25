@@ -30,8 +30,7 @@ test('workspace A cannot read workspace B invoices', async () => {
   const tokenB = ethers.hexlify(ethers.randomBytes(16))
   const idA = 'iso-a-' + Date.now()
   const idB = 'iso-b-' + Date.now()
-  const hashA = '0x' + 'aa'.repeat(32)
-  const hashB = '0x' + 'bb'.repeat(32)
+  const hash = ethers.hexlify(ethers.randomBytes(32))
   await db.query(
     `INSERT INTO workspaces (id, owner, vault, session_id, agent_address, agent_pk_enc, token_hash, demo)
      VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE)`,
@@ -44,11 +43,11 @@ test('workspace A cannot read workspace B invoices', async () => {
   )
   await db.query(
     `INSERT INTO invoices (workspace_id, invoice_hash, status) VALUES ($1,$2,'clean')`,
-    [idA, hashA]
+    [idA, hash]
   )
   await db.query(
     `INSERT INTO invoices (workspace_id, invoice_hash, status) VALUES ($1,$2,'clean')`,
-    [idB, hashB]
+    [idB, hash]
   )
 
   const wsA = await getWorkspaceByToken(`Bearer ${tokenA}`)
@@ -56,10 +55,10 @@ test('workspace A cannot read workspace B invoices', async () => {
   assert.equal(wsA?.id, idA)
   assert.equal(wsB?.id, idB)
 
-  const aSeesB = await db.query('SELECT invoice_hash FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [wsA!.id, hashB])
-  const bSeesA = await db.query('SELECT invoice_hash FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [wsB!.id, hashA])
-  assert.equal(aSeesB.rows.length, 0)
-  assert.equal(bSeesA.rows.length, 0)
-  const aSeesA = await db.query('SELECT invoice_hash FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [wsA!.id, hashA])
-  assert.equal(aSeesA.rows.length, 1)
+  const aSeesB = await db.query('SELECT invoice_hash FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [wsA!.id, hash])
+  const bSeesA = await db.query('SELECT invoice_hash FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [wsB!.id, hash])
+  assert.equal(aSeesB.rows.length, 1)
+  assert.equal(bSeesA.rows.length, 1)
+  const cross = await db.query('SELECT invoice_hash FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [wsA!.id, 'nope'])
+  assert.equal(cross.rows.length, 0)
 })

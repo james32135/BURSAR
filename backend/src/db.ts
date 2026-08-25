@@ -54,6 +54,35 @@ async function migrate(client: Db) {
   await client.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS invoices_ws_hash_uidx ON invoices (workspace_id, invoice_hash)`
   )
+  try {
+    await client.query('ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_pkey')
+  } catch {
+    /* older PGlite */
+  }
+
+  const extra = [
+    ['source', 'TEXT'],
+    ['kind', 'TEXT'],
+    ['pipeline', 'TEXT'],
+    ['decision', 'TEXT'],
+    ['decision_why', 'JSONB'],
+  ]
+  const nowCols = await client.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_name = 'invoices'`
+  )
+  const have = new Set(nowCols.rows.map((r) => String(r.column_name)))
+  for (const [col, typ] of extra) {
+    if (!have.has(col)) await client.query(`ALTER TABLE invoices ADD COLUMN ${col} ${typ}`)
+  }
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS integrations (
+      workspace_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      config JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (workspace_id, kind)
+    )
+  `)
 }
 
 export async function getDb(): Promise<Db> {
