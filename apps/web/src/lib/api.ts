@@ -151,6 +151,24 @@ export const api = {
       agentToken: string
       demo: boolean
     }>,
+  resumeWorkspace: (body: { signature: string; issuedAt: number }) =>
+    fetch('/api/workspaces/resume', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(async (res) => {
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || res.statusText)
+      return json as {
+        id: string
+        owner: string
+        vault: string
+        sessionId: string
+        agentAddress: string
+        agentToken: string
+        demo: boolean
+      }
+    }),
   telegramStatus: () =>
     req('/integrations/telegram') as Promise<{
       live: boolean

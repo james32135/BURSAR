@@ -22,6 +22,7 @@ export function loadWorkspace(): StoredWorkspace | null {
 
 export function saveWorkspace(ws: StoredWorkspace) {
   localStorage.setItem(KEY, JSON.stringify(ws))
+  localStorage.removeItem('bursar.mode')
 }
 
 export function clearWorkspace() {
