@@ -27,6 +27,7 @@ export async function executeAllowedPay(ws: Workspace, hash: string): Promise<Pa
   if (session.revoked || !session.exists) return { ok: false, error: 'session-revoked', status: 400 }
   if (amount > BigInt(vs.band0Max)) return { ok: false, error: 'over-band0', status: 400 }
   if (amount > BigInt(session.remaining)) return { ok: false, error: 'over-session-cap', status: 400 }
+  if (BigInt(vs.usdc) < amount) return { ok: false, error: 'insufficient-vault-balance', status: 400 }
   if (!(await vendorAllowed(ws, remittance))) return { ok: false, error: 'vendor-not-allowlisted', status: 400 }
   await db.query("UPDATE invoices SET pipeline='paying', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [
     ws.id,
