@@ -1,7 +1,7 @@
 {
   "framework": "vite",
-  "installCommand": "if [ -d apps/web ]; then cd apps/web && npm ci; else npm ci; fi",
-  "buildCommand": "if [ -d apps/web ]; then cd apps/web && npm run build && cd .. && rm -rf dist && mkdir -p dist && cp -R apps/web/dist/. dist/; else npm run build; fi",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
