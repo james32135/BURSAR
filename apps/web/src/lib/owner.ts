@@ -43,6 +43,7 @@ async function addAristotle(ethereum: Eip1193) {
         nativeCurrency: { name: '0G', symbol: '0G', decimals: 18 },
         rpcUrls: [LIVE.rpc],
         blockExplorerUrls: ['https://chainscan.0g.ai'],
+        iconUrls: ['https://bursarx.vercel.app/favicon.svg'],
       },
     ],
   })
