@@ -1,14 +1,12 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth'
-import { LIVE } from '@/lib/live'
-import { isDemoMode, loadWorkspace } from '@/lib/workspace'
+import { loadWorkspace } from '@/lib/workspace'
 import { ensureAristotle } from '@/lib/owner'
 import { connectOwner } from '@/lib/connectOwner'
 import { useState } from 'react'
 
 function expectedOwner() {
   const ws = loadWorkspace()
-  if (ws?.owner) return ws.owner.toLowerCase()
-  if (isDemoMode()) return LIVE.owner.toLowerCase()
+  if (ws?.owner && !ws.demo) return ws.owner.toLowerCase()
   return ''
 }
 
