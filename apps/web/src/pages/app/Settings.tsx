@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LIVE } from '@/lib/live'
 import { addrUrl } from '@/lib/cn'
 import { WalletBar } from '@/components/WalletBar'
 import { AuthorityBadge, PageHeader } from '@/components/Product'
+import { MagneticButton } from '@/components/MagneticButton'
 import { api } from '@/lib/api'
 import { loadWorkspace } from '@/lib/workspace'
+import { useState } from 'react'
 
 const SDK = `import { BursarClient } from '@bursar/sdk'
 
@@ -38,14 +40,35 @@ setVendor withdraw setPaused setBands
 createSession transferOwnership ownerPay`
 
 export function Settings() {
+  const qc = useQueryClient()
   const wsQ = useQuery({ queryKey: ['workspace'], queryFn: api.workspace, retry: false })
   const health = useQuery({ queryKey: ['health'], queryFn: api.health })
+  const tg = useQuery({ queryKey: ['telegram'], queryFn: api.telegramStatus, retry: false })
   const stored = loadWorkspace()
   const owner = wsQ.data?.workspace?.owner || stored?.owner || LIVE.owner
   const vault = wsQ.data?.workspace?.vault || stored?.vault || LIVE.vault
   const session = wsQ.data?.workspace?.sessionId || stored?.sessionId || LIVE.sessionId
   const demo = stored?.demo ?? wsQ.data?.workspace?.demo ?? true
   const channels = health.data?.integrations
+  const [bind, setBind] = useState<{ code: string; deepLink: string; expiresAt: string; bot: string } | null>(null)
+  const [tgErr, setTgErr] = useState('')
+  const issue = useMutation({
+    mutationFn: api.telegramBindCode,
+    onSuccess: (out) => {
+      setTgErr('')
+      setBind(out)
+      qc.invalidateQueries({ queryKey: ['telegram'] })
+    },
+    onError: (e) => setTgErr(e instanceof Error ? e.message : String(e)),
+  })
+  const unbind = useMutation({
+    mutationFn: api.telegramUnbind,
+    onSuccess: () => {
+      setBind(null)
+      qc.invalidateQueries({ queryKey: ['telegram'] })
+    },
+    onError: (e) => setTgErr(e instanceof Error ? e.message : String(e)),
+  })
 
   return (
     <div>
@@ -70,14 +93,59 @@ export function Settings() {
         <dt className="text-[var(--fg-muted)]">Intake</dt>
         <dd className="text-xs text-[var(--fg-muted)]">
           PDF {channels?.pdf ? 'on' : '—'} · API {channels?.api ? 'on' : '—'} · MCP {channels?.mcp ? 'on' : '—'} · SDK{' '}
-          {channels?.sdk ? 'on' : '—'} · Telegram {channels?.telegram ? 'live' : 'adapter only (no bot token)'} · Email{' '}
+          {channels?.sdk ? 'on' : '—'} · Telegram {channels?.telegram ? `live @${channels.telegramBot || 'BURSARxbot'}` : 'adapter only'} · Email{' '}
           {channels?.email ? 'on' : 'not shipped'} · Slack/Discord {channels?.slack || channels?.discord ? 'on' : 'rejected'}
         </dd>
         <dt className="text-[var(--fg-muted)]">Telegram</dt>
         <dd className="text-xs text-[var(--fg-muted)]">
-          {channels?.telegram
-            ? 'Bot is live. Send /bind with this workspace token, then a payment request with vendor, amount, and 0x remittance. The bot never receives the owner key.'
-            : 'Adapter is in the API. Production has no TELEGRAM_BOT_TOKEN, so the webhook returns 503. Do not treat Telegram as a live intake channel until a bot token is set on Render.'}
+          {channels?.telegram ? (
+            <div className="space-y-3 text-[var(--fg)]">
+              <p>
+                Bot{' '}
+                <a className="text-[#93c5fd] underline" href={`https://t.me/${channels.telegramBot || 'BURSARxbot'}`}>
+                  t.me/{channels.telegramBot || 'BURSARxbot'}
+                </a>
+                . One-time bind code, not the MCP token. The bot never receives the owner key.
+              </p>
+              {tg.data?.bound ? (
+                <p className="font-mono text-[11px]">
+                  Bound @{tg.data.username || tg.data.telegramUserId} since {tg.data.boundAt}
+                </p>
+              ) : (
+                <p>Not bound to this workspace.</p>
+              )}
+              {bind && (
+                <p className="break-all font-mono text-[11px]">
+                  Code {bind.code} · expires {bind.expiresAt}
+                  <br />
+                  <a className="text-[#93c5fd] underline" href={bind.deepLink}>
+                    {bind.deepLink}
+                  </a>
+                </p>
+              )}
+              {tgErr && <p className="text-red-400">{tgErr}</p>}
+              <div className="flex flex-wrap gap-2">
+                <MagneticButton
+                  disabled={demo || issue.isPending}
+                  onClick={() => issue.mutate()}
+                >
+                  {issue.isPending ? 'Issuing…' : 'Generate bind code'}
+                </MagneticButton>
+                {tg.data?.bound && (
+                  <MagneticButton variant="ghost" disabled={unbind.isPending} onClick={() => unbind.mutate()}>
+                    Unbind Telegram
+                  </MagneticButton>
+                )}
+              </div>
+              {demo && <p>DEMO cannot bind Telegram. Create your own workspace.</p>}
+            </div>
+          ) : (
+            'Adapter is in the API. Production has no TELEGRAM_BOT_TOKEN on Render, so the webhook returns 503.'
+          )}
+        </dd>
+        <dt className="text-[var(--fg-muted)]">Email</dt>
+        <dd className="text-xs text-[var(--fg-muted)]">
+          {channels?.emailReason || 'Not shipped. No dedicated inbound mailbox or MX for this pass.'}
         </dd>
         <dt className="text-[var(--fg-muted)]">RPC</dt>
         <dd className="font-mono text-xs">{LIVE.rpc}</dd>

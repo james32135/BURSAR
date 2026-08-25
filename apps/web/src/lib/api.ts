@@ -55,7 +55,9 @@ export type Health = {
     mcp: boolean
     sdk: boolean
     telegram: boolean
+    telegramBot?: string | null
     email: boolean
+    emailReason?: string
     slack: boolean
     discord: boolean
   }
@@ -149,6 +151,23 @@ export const api = {
       agentToken: string
       demo: boolean
     }>,
+  telegramStatus: () =>
+    req('/integrations/telegram') as Promise<{
+      live: boolean
+      bot: string | null
+      bound: boolean
+      telegramUserId: string | null
+      username: string | null
+      boundAt: string | null
+    }>,
+  telegramBindCode: () =>
+    req('/integrations/telegram/bind-code', { method: 'POST' }) as Promise<{
+      code: string
+      expiresAt: string
+      bot: string
+      deepLink: string
+    }>,
+  telegramUnbind: () => req('/integrations/telegram/unbind', { method: 'POST' }) as Promise<{ ok: boolean }>,
 }
 
 export function flagsOf(inv: Invoice): Flag[] {
