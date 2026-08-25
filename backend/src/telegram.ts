@@ -32,13 +32,48 @@ async function bot(method: string, body: Record<string, unknown>) {
   return json
 }
 
+function shortHash(hash: string) {
+  return String(hash || '').slice(0, 18)
+}
+
+function whyLine(raw: unknown) {
+  try {
+    const why = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (Array.isArray(why)) {
+      const first = why[0]
+      if (!first) return ''
+      if (typeof first === 'string') return first
+      if (first && typeof first === 'object') {
+        const o = first as { code?: string; detail?: string }
+        return [o.code, o.detail].filter(Boolean).join(' ')
+      }
+    }
+    return ''
+  } catch {
+    return ''
+  }
+}
+
+async function invoiceByPrefix(workspaceId: string, prefix: string) {
+  const db = await getDb()
+  const q = await db.query(
+    `SELECT * FROM invoices WHERE workspace_id = $1 AND invoice_hash LIKE $2 ORDER BY created_at DESC LIMIT 1`,
+    [workspaceId, `${prefix}%`]
+  )
+  return q.rows[0] || null
+}
+
 async function send(chatId: number, text: string, extra?: Record<string, unknown>) {
-  await bot('sendMessage', {
+  const body = {
     chat_id: chatId,
     text,
     disable_web_page_preview: true,
     ...extra,
-  })
+  }
+  const ok = await bot('sendMessage', body)
+  if (!ok && extra?.reply_markup) {
+    await bot('sendMessage', { chat_id: chatId, text, disable_web_page_preview: true })
+  }
 }
 
 async function answerCb(id: string, text?: string) {
@@ -171,7 +206,7 @@ export async function notifyWorkspacePayable(
   ]
   const buttons =
     decision === 'auto-pay'
-      ? [[{ text: 'PAY', callback_data: `pay:${hash}` }, { text: 'Open console', url: `${CONSOLE}/app/inbox/${hash}` }]]
+      ? [[{ text: 'PAY', callback_data: `pay:${shortHash(hash)}` }, { text: 'Open console', url: `${CONSOLE}/app/inbox/${hash}` }]]
       : decision === 'blocked'
         ? [[{ text: 'Open console', url: `${CONSOLE}/app/inbox/${hash}` }]]
         : [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${hash}` }]]
@@ -249,14 +284,12 @@ async function showAttention(chatId: number, workspaceId: string) {
     `Auto-pay ${auto} · Owner review ${review} · Blocked ${blocked}`,
     '',
     ...q.rows.map((r) => {
-      const why = typeof r.decision_why === 'string' ? JSON.parse(String(r.decision_why)) : r.decision_why
-      const first = Array.isArray(why) ? why[0] : ''
-      return `${r.decision || r.status} · ${r.vendor || '-'} · ${usd(r.amount_units)} · ${String(r.invoice_hash).slice(0, 10)} ${first}`
+      return `${r.decision || r.status} · ${r.vendor || '-'} · ${usd(r.amount_units)} · ${String(r.invoice_hash).slice(0, 10)} ${whyLine(r.decision_why)}`
     }),
   ]
   await send(chatId, lines.join('\n'), {
     reply_markup: {
-      inline_keyboard: [[{ text: 'Review first', callback_data: `open:${target.invoice_hash}` }]],
+      inline_keyboard: [[{ text: 'Review first', callback_data: `open:${shortHash(String(target.invoice_hash))}` }]],
     },
   })
 }
@@ -269,21 +302,25 @@ async function inspect(chatId: number, workspaceId: string, hash: string) {
     await send(chatId, 'Payable not in this workspace.')
     return
   }
-  const why = typeof inv.decision_why === 'string' ? JSON.parse(String(inv.decision_why)) : inv.decision_why
   const lines = [
     `Vendor: ${inv.vendor || '-'}`,
     `Amount: ${usd(inv.amount_units)}`,
     `Recipient: ${inv.remittance || '-'}`,
     `Invoice: ${inv.invoice_hash}`,
     `Decision: ${inv.decision || inv.status}`,
-    `Risk / why: ${Array.isArray(why) ? why.join(' ') : String(why || '-')}`,
+    `Risk / why: ${whyLine(inv.decision_why) || '-'}`,
   ]
   const decision = String(inv.decision || '')
   const canPay = (decision === 'auto-pay' || inv.status === 'clean') && inv.status !== 'paid' && inv.status !== 'flagged'
   const buttons =
     canPay
-      ? [[{ text: 'PAY', callback_data: `pay:${hash}` }, { text: 'Open console', url: `${CONSOLE}/app/inbox/${hash}` }]]
-      : [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${hash}` }]]
+      ? [
+          [
+            { text: 'PAY', callback_data: `pay:${shortHash(String(inv.invoice_hash))}` },
+            { text: 'Open console', url: `${CONSOLE}/app/inbox/${inv.invoice_hash}` },
+          ],
+        ]
+      : [[{ text: 'APPROVE IN APP', url: `${CONSOLE}/app/inbox/${inv.invoice_hash}` }]]
   await send(chatId, lines.join('\n'), { reply_markup: { inline_keyboard: buttons } })
 }
 
@@ -330,7 +367,9 @@ export async function handleTelegramUpdate(update: TgUpdate) {
       return { ok: true, rateLimited: true }
     }
     const data = String(cb.data || '')
-    const [kind, hash] = data.split(':')
+    const [kind, prefix] = data.split(':')
+    const row = prefix ? await invoiceByPrefix(bound.ws.id, prefix) : null
+    const hash = row ? String(row.invoice_hash) : ''
     if (kind === 'pay' && hash) {
       await answerCb(cb.id, 'Paying…')
       const wsPay = bound.ws
@@ -357,6 +396,10 @@ export async function handleTelegramUpdate(update: TgUpdate) {
     if ((kind === 'open' || kind === 'review') && hash) {
       await answerCb(cb.id)
       await inspect(chatId, bound.ws.id, hash)
+      return { ok: true }
+    }
+    if ((kind === 'pay' || kind === 'open' || kind === 'review') && prefix && !hash) {
+      await answerCb(cb.id, 'Payable not in this workspace.')
       return { ok: true }
     }
     await answerCb(cb.id)
@@ -413,7 +456,9 @@ export async function handleTelegramUpdate(update: TgUpdate) {
     return { ok: true }
   }
   if (c === '/attention' || c === '/inbox') {
-    void showAttention(chatId, bound.ws.id)
+    void showAttention(chatId, bound.ws.id).catch(async (e) => {
+      await send(chatId, `Attention failed. ${e instanceof Error ? e.message.slice(0, 180) : 'retry'}`)
+    })
     return { ok: true }
   }
   if (c === '/review') {
