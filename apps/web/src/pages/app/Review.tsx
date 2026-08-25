@@ -50,17 +50,10 @@ export function Review() {
 
   const payAllowed = useMutation({
     mutationFn: async () => {
-      const results: string[] = []
-      for (const inv of auto) {
-        const id = hashOf(inv)
-        try {
-          const res = await api.pay(id)
-          results.push(`${id.slice(0, 10)}... paid ${res.hash || res.tx || ''}`)
-        } catch (e) {
-          results.push(`${id.slice(0, 10)}... ${e instanceof Error ? e.message : String(e)}`)
-        }
-      }
-      return results
+      const res = await api.payAllowed()
+      const paid = (res.paid || []).map((p) => `${String(p.invoiceHash || p.hash || '').slice(0, 10)}... paid ${p.tx || p.hash || ''}`)
+      const failed = (res.failed || []).map((p: { hash?: string; error?: string }) => `${String(p.hash || '').slice(0, 10)}... ${p.error || 'failed'}`)
+      return [...paid, ...failed, res.note].filter(Boolean) as string[]
     },
     onSuccess: (results) => {
       setLog(results.join('\n'))

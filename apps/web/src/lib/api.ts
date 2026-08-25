@@ -49,6 +49,16 @@ export type Health = {
   teeSigner: string
   usdc: string
   privacy: string
+  integrations?: {
+    pdf: boolean
+    api: boolean
+    mcp: boolean
+    sdk: boolean
+    telegram: boolean
+    email: boolean
+    slack: boolean
+    discord: boolean
+  }
 }
 
 async function req(path: string, init?: RequestInit) {
@@ -107,7 +117,12 @@ export const api = {
   submitPayable: (body: { vendor: string; remittance: string; amountUsd: string; invoiceNumber?: string; memo?: string; kind?: string }) =>
     req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   pay: (hash: string) => req('/invoices/' + hash + '/pay', { method: 'POST' }),
-  payAllowed: () => req('/queue/pay-allowed', { method: 'POST' }),
+  payAllowed: () =>
+    req('/queue/pay-allowed', { method: 'POST' }) as Promise<{
+      paid: { invoiceHash?: string; hash?: string; tx?: string; explorer?: string }[]
+      failed: { hash?: string; error?: string }[]
+      note?: string
+    }>,
   confirmPay: (hash: string, tx?: string) =>
     req('/invoices/' + hash + '/confirm-pay', {
       method: 'POST',
