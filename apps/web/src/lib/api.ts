@@ -24,6 +24,9 @@ export type Invoice = {
   pipeline?: string
   decision?: string
   why?: string[]
+  dueDate?: string | null
+  rail?: string | null
+  nextAction?: 'PAY' | 'OPEN' | 'WHY' | 'PROOF' | 'WAIT'
 }
 
 export type Health = {
@@ -94,31 +97,62 @@ export const api = {
       ownerReview: number
       blocked: number
       duplicate: number
+      paidRecently?: number
       totalUnits: string
       autoApprovedUnits: string
+      waitingForYouUnits?: string
+      blockedUnits?: string
+      paidRecentUnits?: string
       payables: Invoice[]
     }>,
   vendorMemory: () => req('/vendors/memory') as Promise<{
     vendors: Array<{
       remittance: string
       name: string
+      trusted?: boolean
       paymentCount: number
       totalPaid: string
       lastAmount: string | null
+      lastPaidAt?: string | null
       typicalAmount: string | null
+      typicalMin?: string | null
+      typicalMax?: string | null
       firstSeen: string | null
       blockCount: number
       lastBlockReason: string | null
+      recipients?: string[]
+      recipientChanged?: boolean
+      frequency?: string | null
     }>
   }>,
+  obligations: () =>
+    req('/obligations') as Promise<{
+      obligations: Array<{
+        id: string
+        vendor: string
+        remittance: string
+        cadence: string
+        expectedMin: string | null
+        expectedMax: string | null
+        lastMatchedHash: string | null
+      }>
+    }>,
   invoice: (hash: string) => req('/invoices/' + hash) as Promise<Invoice>,
   submit: (file: File) => {
     const form = new FormData()
     form.set('file', file)
     return req('/invoices?analyze=1', { method: 'POST', body: form })
   },
-  submitPayable: (body: { vendor: string; remittance: string; amountUsd: string; invoiceNumber?: string; memo?: string; kind?: string }) =>
-    req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+  submitPayable: (body: {
+    vendor: string
+    remittance: string
+    amountUsd: string
+    invoiceNumber?: string
+    memo?: string
+    kind?: string
+    cadence?: string
+    rail?: string
+  }) => req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   pay: (hash: string) => req('/invoices/' + hash + '/pay', { method: 'POST' }),
   analyzeInvoice: (hash: string) => req('/invoices/' + hash + '/analyze', { method: 'POST' }),
   agentBounds: () =>
@@ -243,16 +277,24 @@ export function attentionFromInvoices(invoices: Invoice[], remaining: bigint | s
   const ownerReview = invoices.filter((i) => i.status === 'flagged')
   const blocked = invoices.filter((i) => i.status === 'blocked')
   const duplicate = invoices.filter((i) => flagsOf(i).some((f) => f.code.startsWith('duplicate')))
+  const paid = invoices.filter((i) => i.status === 'paid' || Boolean(i.pay_tx))
   const totalUnits = open.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
   const autoUnits = autoPay.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const reviewUnits = ownerReview.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const blockedUnits = blocked.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const paidUnits = paid.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
   return {
     new: open.length,
     autoPay: autoPay.length,
     ownerReview: ownerReview.length,
     blocked: blocked.length,
     duplicate: duplicate.length,
+    paidRecently: paid.length,
     totalUnits: totalUnits.toString(),
     autoApprovedUnits: autoUnits.toString(),
+    waitingForYouUnits: reviewUnits.toString(),
+    blockedUnits: blockedUnits.toString(),
+    paidRecentUnits: paidUnits.toString(),
     payables: invoices,
   }
 }

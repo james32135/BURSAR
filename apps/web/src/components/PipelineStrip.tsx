@@ -2,7 +2,7 @@ const STEPS = [
   { id: 'received', label: 'Received' },
   { id: 'encrypting', label: 'Encrypted' },
   { id: 'stored', label: 'Storage verified' },
-  { id: 'analyzing', label: 'Private analysis' },
+  { id: 'analyzing', label: 'Private AI' },
   { id: 'checking_vendor', label: 'Vendor check' },
   { id: 'checking_policy', label: 'Policy check' },
   { id: 'ready', label: 'Decision' },
