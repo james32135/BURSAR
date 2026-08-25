@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useConnectWallet, usePrivy } from '@privy-io/react-auth'
+import { usePrivy } from '@privy-io/react-auth'
 import { useEffect, useState } from 'react'
 import { LIVE } from '@/lib/live'
 import { WalletBar, useOwnerWallet } from '@/components/WalletBar'
@@ -13,8 +13,7 @@ import { connectOwner } from '@/lib/connectOwner'
 
 export default function Onboarding() {
   const nav = useNavigate()
-  const { ready, authenticated, login } = usePrivy()
-  const { connectWallet } = useConnectWallet()
+  const { ready, authenticated, login, user } = usePrivy()
   const { wallet, addr, authenticated: authed } = useOwnerWallet()
   const existing = loadWorkspace()
   const [step, setStep] = useState(existing && !existing.demo ? 3 : 0)
@@ -154,15 +153,16 @@ export default function Onboarding() {
               <h2 className="font-display text-lg font-bold">Connect owner wallet</h2>
               <AuthorityBadge kind="owner" />
             </div>
-            <p className="mt-2 font-mono text-xs text-[#a1a1aa]">{!ready ? 'wallet…' : authed ? addr : 'Not connected'}</p>
+            <p className="mt-2 font-mono text-xs text-[#a1a1aa]">
+              {!ready ? 'wallet…' : authenticated || authed ? (addr || user?.wallet?.address || 'Connected') : 'Not connected'}
+            </p>
             <p className="mt-2 max-w-xl text-sm text-[#a1a1aa]">
-              BURSAR never asks for a seed phrase or private key. Owner connect uses the injected MetaMask provider. Adding 0G Aristotle (16661) happens only after you click a later owner action — not at connect. MetaMask may warn on <span className="font-mono text-[11px] text-[#d4d4d8]">*.vercel.app</span> because drainers abuse that host. This origin is{' '}
-              <span className="font-mono text-[11px] text-[#d4d4d8]">bursarx.vercel.app</span>.
+              BURSAR never asks for a seed phrase or private key. Sign the owner login in MetaMask. 0G Aristotle (16661) is added only when you create or fund a vault — not at login.
             </p>
             {!authenticated && (
               <MagneticButton
                 className="mt-4"
-                onClick={() => connectOwner(connectWallet, login)}
+                onClick={() => connectOwner(login)}
               >
                 Connect owner wallet
               </MagneticButton>
