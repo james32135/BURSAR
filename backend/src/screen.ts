@@ -1,5 +1,7 @@
 export type Flag = { code: string; severity: 'block' | 'review'; detail: string }
 
+import { detectUnsupportedRail } from './rails.ts'
+
 export function screenInvoice(input: {
   invoiceHash: string
   alreadyPaid: boolean
@@ -13,6 +15,13 @@ export function screenInvoice(input: {
   if (input.alreadyPaid) flags.push({ code: 'duplicate-paid', severity: 'block', detail: 'invoice hash already paid on-chain' })
   if (input.alreadySeen) flags.push({ code: 'duplicate-seen', severity: 'block', detail: 'invoice hash already ingested' })
   if (!input.extracted) flags.push({ code: 'extract-failed', severity: 'block', detail: 'no JSON object from vision model' })
+  const rail = detectUnsupportedRail({
+    text: [input.extracted?.description, input.extracted?.chain_note, input.extracted?.payment_rail].filter(Boolean).join(' '),
+    currency: input.extracted?.currency || input.extracted?.total_currency,
+    rail: input.extracted?.payment_rail,
+    chainNote: input.extracted?.chain_note,
+  })
+  if (rail) flags.push(rail)
   const rem = input.extracted?.remittance_usdc_e || ''
   if (!/^0x[a-fA-F0-9]{40}$/.test(rem)) {
     flags.push({ code: 'bad-remittance', severity: 'block', detail: 'missing or invalid remittance address' })
