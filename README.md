@@ -6,7 +6,9 @@ Your agent handles the finance work. Your policy controls the money. The agent n
 
 ## Product
 
-Each user gets a workspace: owner wallet → `BursarFactory` → isolated `BursarVault` → policy → vendor allowlist → scoped agent session → invoice → USDC.e pay or block → `/verify`.
+Each user gets a workspace: owner wallet → `BursarFactory` → isolated `BursarVault` → policy → vendor allowlist → scoped agent session → **payable** (PDF, API, MCP, or Telegram) → USDC.e pay or block → `/verify`.
+
+The PDF is one input adapter. The product object is the payable.
 
 The labeled **DEMO** vault is a judge door. It is not the default workspace.
 
