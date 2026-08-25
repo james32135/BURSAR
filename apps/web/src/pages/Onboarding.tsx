@@ -6,7 +6,7 @@ import { WalletBar, useOwnerWallet } from '@/components/WalletBar'
 import { MagneticButton } from '@/components/MagneticButton'
 import { AuthorityBadge } from '@/components/Product'
 import { api } from '@/lib/api'
-import { createVault, fundVault, ownerWrite, signBind, ensureAristotle, formatOwnerError } from '@/lib/owner'
+import { createVault, fundVault, ownerWrite, signBind, signResume, listFactoryVaults, ensureAristotle, formatOwnerError } from '@/lib/owner'
 import { enterDemo, loadWorkspace, saveWorkspace } from '@/lib/workspace'
 import { addrUrl } from '@/lib/cn'
 import { connectOwner } from '@/lib/connectOwner'
@@ -28,6 +28,7 @@ export default function Onboarding() {
   const [sessionOk, setSessionOk] = useState(false)
   const [vendorOk, setVendorOk] = useState(false)
   const [funded, setFunded] = useState(false)
+  const [factoryVaults, setFactoryVaults] = useState<string[]>([])
 
   useEffect(() => {
     if (!existing || existing.demo) return
@@ -41,9 +42,55 @@ export default function Onboarding() {
     return () => { cancelled = true }
   }, [existing?.id])
 
+  useEffect(() => {
+    const owner = (addr || user?.wallet?.address || '').toLowerCase()
+    if (!owner) return
+    let cancelled = false
+    listFactoryVaults(owner).then((list) => {
+      if (!cancelled) setFactoryVaults(list.map((v) => v.toLowerCase()))
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [addr, user?.wallet?.address])
+
   async function eth() {
     if (!wallet) throw new Error('Connect the owner wallet first')
     return ensureAristotle(wallet)
+  }
+
+  function persistDesk(created: { id: string; owner: string; vault: string; sessionId: string; agentAddress: string; agentToken: string }) {
+    saveWorkspace({
+      id: created.id,
+      owner: created.owner,
+      vault: created.vault,
+      sessionId: created.sessionId,
+      agentAddress: created.agentAddress,
+      agentToken: created.agentToken,
+      demo: false,
+    })
+    setVault(created.vault)
+    setBound(created)
+    setStep(3)
+  }
+
+  async function onResume() {
+    if (!wallet) {
+      setErr('Connect the owner wallet first')
+      return
+    }
+    setErr('')
+    setBusy('Sign to resume this desk…')
+    try {
+      const issuedAt = Math.floor(Date.now() / 1000)
+      const ethereum = await wallet.getEthereumProvider()
+      const sig = await signResume(ethereum, issuedAt)
+      const created = await api.resumeWorkspace({ signature: sig.signature, issuedAt })
+      persistDesk(created)
+      nav('/app')
+    } catch (e) {
+      setErr(formatOwnerError(e))
+    } finally {
+      setBusy('')
+    }
   }
 
   async function onCreateVault() {
@@ -69,17 +116,7 @@ export default function Onboarding() {
       const issuedAt = Math.floor(Date.now() / 1000)
       const sig = await signBind(await eth(), vault, issuedAt)
       const created = await api.bindWorkspace({ vault, signature: sig.signature, issuedAt })
-      saveWorkspace({
-        id: created.id,
-        owner: created.owner,
-        vault: created.vault,
-        sessionId: created.sessionId,
-        agentAddress: created.agentAddress,
-        agentToken: created.agentToken,
-        demo: false,
-      })
-      setBound(created)
-      setStep(3)
+      persistDesk(created)
     } catch (e) {
       setErr(formatOwnerError(e))
     } finally {
@@ -141,7 +178,9 @@ export default function Onboarding() {
       </header>
       <main className="mx-auto max-w-3xl px-6 py-10">
         <h1 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-          Connect the owner wallet. Create a vault the agent cannot own.
+          {factoryVaults.length && !vault
+            ? 'Resume the vault the agent cannot own.'
+            : 'Connect the owner wallet. Create a vault the agent cannot own.'}
         </h1>
         <p className="mt-4 max-w-xl text-[#a1a1aa]">
           Each workspace is a separate BursarVault. The agent never receives the owner key, seed, or withdraw rights.
@@ -169,18 +208,42 @@ export default function Onboarding() {
             )}
           </li>
 
+          {(authenticated || authed) && !bound && (
+            <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-lg font-bold">Resume workspace</h2>
+                <AuthorityBadge kind="owner" />
+              </div>
+              <p className="mt-2 text-sm text-[#a1a1aa]">
+                {factoryVaults.length
+                  ? `This owner already has ${factoryVaults.length === 1 ? 'a vault' : `${factoryVaults.length} vaults`} on Aristotle. Sign once to restore the desk token. Do not deploy another vault.`
+                  : 'If this owner already bound a vault, sign once to restore the desk token. Do not deploy another vault.'}
+              </p>
+              {factoryVaults.length > 0 && (
+                <p className="mt-2 break-all font-mono text-[10px] text-[#a1a1aa]">{factoryVaults[factoryVaults.length - 1]}</p>
+              )}
+              <MagneticButton className="mt-4" disabled={!authed || Boolean(busy)} onClick={onResume}>
+                Resume workspace
+              </MagneticButton>
+            </li>
+          )}
+
           <li className="rounded-[4px] border border-white/10 bg-[#111113] p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-bold">Create vault</h2>
               <AuthorityBadge kind="owner" />
             </div>
             <p className="mt-2 text-sm text-[#a1a1aa]">
-              Factory {LIVE.factory.slice(0, 10)}… deploys a BursarVault you own on Aristotle. Band 0 $200. Band 1 $10,000.
+              {factoryVaults.length
+                ? 'Only for a new isolated desk. The existing vault above is the production workspace.'
+                : `Factory ${LIVE.factory.slice(0, 10)}… deploys a BursarVault you own on Aristotle. Band 0 $200. Band 1 $10,000.`}
             </p>
             {vault ? (
               <p className="mt-2 break-all font-mono text-xs">
                 <a className="text-[#93c5fd] hover:text-white" href={addrUrl(vault)}>{vault}</a>
               </p>
+            ) : factoryVaults.length ? (
+              <p className="mt-2 text-sm text-[#a1a1aa]">Hidden while a factory vault already exists for this owner. Resume the desk above.</p>
             ) : (
               <MagneticButton className="mt-4" disabled={!authed || Boolean(busy)} onClick={onCreateVault}>
                 Create vault
