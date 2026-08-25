@@ -28,8 +28,18 @@ function req(name: string): string {
   return v
 }
 
+function goClientPath() {
+  const fromEnv = process.env.BURSAR_GO_STORAGE_CLIENT
+  if (fromEnv && existsSync(fromEnv)) return fromEnv
+  const win = resolve(BURSAR_ROOT, 'spikes/bin/0g-storage-client.exe')
+  const nix = '/usr/local/bin/0g-storage-client'
+  if (existsSync(win)) return win
+  if (existsSync(nix)) return nix
+  return fromEnv || win
+}
+
 export const config = {
-  port: Number(process.env.BURSAR_API_PORT || 8787),
+  port: Number(process.env.PORT || process.env.BURSAR_API_PORT || 8787),
   chainId: Number(process.env.BURSAR_CHAIN_ID || 16661),
   rpcUrl: process.env.BURSAR_RPC_URL || 'https://evmrpc.0g.ai',
   explorer: process.env.BURSAR_EXPLORER_URL || 'https://chainscan.0g.ai',
@@ -46,10 +56,12 @@ export const config = {
   inference: process.env.OG_INFERENCE_SERVING || '0x47340d900bdFec2BD393c626E12ea0656F938d84',
   visionProvider: process.env.OG_DIRECT_PROVIDER_ADDRESS || '0x4870CbC4D07d6Ac2EE5aA865588e5985FE77a4E9',
   visionModel: process.env.OG_DIRECT_MODEL || '0gm-1.0-35b-a3b',
-  goClient: process.env.BURSAR_GO_STORAGE_CLIENT || resolve(BURSAR_ROOT, 'spikes/bin/0g-storage-client.exe'),
+  goClient: goClientPath(),
   apiToken: process.env.BURSAR_MCP_TOKEN_SECRET || '',
   databaseUrl: process.env.BURSAR_DATABASE_URL || '',
   pgliteDir: process.env.BURSAR_PGLITE_DIR || resolve(BACKEND_ROOT, 'data/pglite'),
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
+  telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
 }
 
 export const VAULT_ABI = [
