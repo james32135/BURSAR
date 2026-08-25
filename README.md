@@ -46,8 +46,8 @@ Band 0 (session): $200. Band 1 (owner): $10,000.
 
 ## Production
 
-- API: `https://bursar-api.onrender.com` (`/health`, `/product`, `/verify/:tx`)
-- Console: deploy `apps/web` with `PRIVY_APP_ID` and proxy `/api` to the Render API. Vercel `bursarx` needs a Vercel account API token from vercel.com/account/tokens, then `BURSAR_API_URL` and `BURSAR_MCP_TOKEN_SECRET` as server env (never `VITE_*`).
+- API: [`https://bursar-api.onrender.com`](https://bursar-api.onrender.com/health)
+- Console: [`https://bursarx.vercel.app`](https://bursarx.vercel.app) (Vite app in `apps/web`, `/api` proxied to Render). Set `PRIVY_APP_ID`, `BURSAR_API_URL`, and `BURSAR_MCP_TOKEN_SECRET` in the Vercel project. Never `VITE_*`.
 
 ## Local run
 
