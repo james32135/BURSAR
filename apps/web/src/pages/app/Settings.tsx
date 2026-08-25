@@ -15,24 +15,23 @@ const bursar = new BursarClient({
 })
 
 await bursar.health()
-await bursar.workspace()
-await bursar.policy()
-await bursar.submitInvoice(pdfBytes, true)
-await bursar.queue()
-await bursar.getInvoice(hash)
-await bursar.pay(hash)
-await bursar.getPaymentStatus(hash)
+await bursar.attention()
+await bursar.submitPayable({ vendor, remittance, amountUsd })
+await bursar.vendorMemory()
+await bursar.payAllowed()
 await bursar.verify(txHash)`
 
 const MCP = `node packages/mcp/src/server.mjs
 
-submit_invoice
-get_queue
+attention
+submit_payable
 inspect_invoice
+explain_decision
 request_approval
 execute_allowed_payment
-get_payment_status
+pay_allowed_sequential
 get_proof
+verify_payment
 
 # forbidden
 setVendor withdraw setPaused setBands
@@ -40,11 +39,13 @@ createSession transferOwnership ownerPay`
 
 export function Settings() {
   const wsQ = useQuery({ queryKey: ['workspace'], queryFn: api.workspace, retry: false })
+  const health = useQuery({ queryKey: ['health'], queryFn: api.health })
   const stored = loadWorkspace()
   const owner = wsQ.data?.workspace?.owner || stored?.owner || LIVE.owner
   const vault = wsQ.data?.workspace?.vault || stored?.vault || LIVE.vault
   const session = wsQ.data?.workspace?.sessionId || stored?.sessionId || LIVE.sessionId
   const demo = stored?.demo ?? wsQ.data?.workspace?.demo ?? true
+  const channels = health.data?.integrations
 
   return (
     <div>
@@ -66,9 +67,17 @@ export function Settings() {
         <dd className="break-all font-mono text-xs"><a className="underline" href={addrUrl(vault)}>{vault}</a></dd>
         <dt className="text-[var(--fg-muted)]">Session</dt>
         <dd className="break-all font-mono text-xs">{session}</dd>
+        <dt className="text-[var(--fg-muted)]">Intake</dt>
+        <dd className="text-xs text-[var(--fg-muted)]">
+          PDF {channels?.pdf ? 'on' : '—'} · API {channels?.api ? 'on' : '—'} · MCP {channels?.mcp ? 'on' : '—'} · SDK{' '}
+          {channels?.sdk ? 'on' : '—'} · Telegram {channels?.telegram ? 'live' : 'adapter only (no bot token)'} · Email{' '}
+          {channels?.email ? 'on' : 'not shipped'} · Slack/Discord {channels?.slack || channels?.discord ? 'on' : 'rejected'}
+        </dd>
         <dt className="text-[var(--fg-muted)]">Telegram</dt>
         <dd className="text-xs text-[var(--fg-muted)]">
-          Set TELEGRAM_BOT_TOKEN on the API. Send /bind with this workspace token, then a payment request with vendor, amount, and 0x remittance. The bot never receives the owner key.
+          {channels?.telegram
+            ? 'Bot is live. Send /bind with this workspace token, then a payment request with vendor, amount, and 0x remittance. The bot never receives the owner key.'
+            : 'Adapter is in the API. Production has no TELEGRAM_BOT_TOKEN, so the webhook returns 503. Do not treat Telegram as a live intake channel until a bot token is set on Render.'}
         </dd>
         <dt className="text-[var(--fg-muted)]">RPC</dt>
         <dd className="font-mono text-xs">{LIVE.rpc}</dd>

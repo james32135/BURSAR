@@ -100,7 +100,7 @@ export function Landing() {
             <div className="hero-reveal mt-16 grid gap-6 border-t border-[#09090b]/10 pt-8 font-mono text-[10px] uppercase tracking-[0.16em] sm:grid-cols-3">
               <div>
                 <div className="text-[#09090b]">Intake from work</div>
-                <div className="mt-2 text-[#71717a]">PDF · API · MCP · Telegram</div>
+                <div className="mt-2 text-[#71717a]">PDF · API · MCP</div>
               </div>
               <div>
                 <div className="text-[#09090b]">Remember vendors</div>
@@ -154,7 +154,7 @@ export function Landing() {
             </h2>
             <div className="mt-12 flex gap-2 overflow-x-auto md:grid md:grid-cols-6 md:gap-3 md:overflow-visible">
               {[
-                { t: 'Intake', d: 'PDF, API, MCP, or Telegram. Same Payable engine.' },
+                { t: 'Intake', d: 'PDF, API, or MCP. Telegram only when TELEGRAM_BOT_TOKEN is set.' },
                 { t: 'Direct TeeML', d: 'Vision 0gm-1.0-35b-a3b. Signed response recovered.' },
                 { t: '0G Storage', d: 'Encrypted upload. Go client proves the download.' },
                 { t: 'Policy', d: 'Vendor, band, session cap, pause, expiry, revoke.' },
@@ -202,8 +202,8 @@ export function Landing() {
               Connect the owner wallet. Deploy a vault. Authorize a scoped agent. Connect an intake channel. Receive a payable.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <MagneticButton href="/app" variant="ghost">
-                Open console
+              <MagneticButton href="/start" variant="ghost">
+                Get started
               </MagneticButton>
               <MagneticButton href="/agent" variant="ghost">
                 MCP / SDK
