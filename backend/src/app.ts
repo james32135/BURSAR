@@ -19,6 +19,7 @@ import {
 } from './vault.ts'
 import {
   bindWorkspace,
+  resumeWorkspace,
   ensureDemoWorkspace,
   getWorkspaceByToken,
   publicWorkspace,
@@ -205,6 +206,23 @@ app.post('/workspaces', async (c) => {
       issuedAt: Number(body.issuedAt),
     })
     return c.json(created)
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
+  }
+})
+
+app.post('/workspaces/resume', async (c) => {
+  await ensureDemoWorkspace()
+  const body = await c.req.json<{ signature?: string; issuedAt?: number }>()
+  if (!body.signature || !body.issuedAt) {
+    return c.json({ error: 'signature and issuedAt required' }, 400)
+  }
+  try {
+    const resumed = await resumeWorkspace({
+      signature: body.signature,
+      issuedAt: Number(body.issuedAt),
+    })
+    return c.json(resumed)
   } catch (e) {
     return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
   }
