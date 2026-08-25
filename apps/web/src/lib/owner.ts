@@ -206,3 +206,25 @@ export async function signBind(ethereum: Eip1193, vault: string, issuedAt: numbe
   const signature = await walletClient.signMessage({ account, message })
   return { account, message, signature, issuedAt }
 }
+
+/** Personal sign only. Does not switch MetaMask to Aristotle. */
+export async function signResume(ethereum: Eip1193, issuedAt: number) {
+  const walletClient = createWalletClient({
+    transport: custom(ethereum as never),
+  })
+  const [account] = await walletClient.getAddresses()
+  if (!account) throw new Error('Connect the owner wallet first')
+  const message = `BURSAR resume\nchain ${LIVE.chainId}\ntime ${issuedAt}`
+  const signature = await walletClient.signMessage({ account, message })
+  return { account, message, signature, issuedAt }
+}
+
+export async function listFactoryVaults(owner: string) {
+  const publicClient = createPublicClient({ chain: aristotle, transport: http(LIVE.rpc) })
+  return publicClient.readContract({
+    address: LIVE.factory as `0x${string}`,
+    abi: factoryAbi,
+    functionName: 'vaultsOf',
+    args: [owner as `0x${string}`],
+  })
+}
