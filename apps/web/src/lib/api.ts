@@ -165,3 +165,26 @@ export function extractedOf(inv: Invoice): Record<string, string> {
 export function hashOf(inv: Invoice) {
   return inv.invoiceHash || inv.invoice_hash || ''
 }
+
+export function attentionFromInvoices(invoices: Invoice[], remaining: bigint | string | number) {
+  const cap = BigInt(String(remaining || '0'))
+  const open = invoices.filter((i) => i.status !== 'paid')
+  const autoPay = invoices.filter(
+    (i) => i.status === 'clean' && !i.pay_tx && BigInt(String(i.amount_units || '0')) <= cap
+  )
+  const ownerReview = invoices.filter((i) => i.status === 'flagged')
+  const blocked = invoices.filter((i) => i.status === 'blocked')
+  const duplicate = invoices.filter((i) => flagsOf(i).some((f) => f.code.startsWith('duplicate')))
+  const totalUnits = open.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const autoUnits = autoPay.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  return {
+    new: open.length,
+    autoPay: autoPay.length,
+    ownerReview: ownerReview.length,
+    blocked: blocked.length,
+    duplicate: duplicate.length,
+    totalUnits: totalUnits.toString(),
+    autoApprovedUnits: autoUnits.toString(),
+    payables: invoices,
+  }
+}
