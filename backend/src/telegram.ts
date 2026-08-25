@@ -298,7 +298,7 @@ async function help(chatId: number) {
       '/vendors — vendor memory',
       '/help — this list',
       'To submit a payable, send vendor, amount, and a 0x remittance on 0G Aristotle USDC.e.',
-      'PAY in this chat only runs Band-0 session.pay. Owner approve / withdraw / policy stay on bursarx.vercel.app.',
+      'PAY in this chat only runs Band-0 session pay. Owner approve / withdraw / policy stay on bursarx.vercel.app.',
     ].join('\n')
   )
 }
@@ -323,7 +323,7 @@ export async function handleTelegramUpdate(update: TgUpdate) {
       return { ok: true }
     }
     if (!(await rateOk(telegramUserId))) {
-      await answerCb(cb.id)
+      await answerCb(cb.id, 'Wait a moment, then retry.')
       return { ok: true, rateLimited: true }
     }
     const data = String(cb.data || '')
@@ -398,7 +398,10 @@ export async function handleTelegramUpdate(update: TgUpdate) {
 
   const bound = await requireWs(telegramUserId, chatId)
   if (!bound) return { ok: true, unbound: true }
-  if (!(await rateOk(telegramUserId))) return { ok: true, rateLimited: true }
+  if (!(await rateOk(telegramUserId))) {
+    await send(chatId, 'Wait a moment, then retry.')
+    return { ok: true, rateLimited: true }
+  }
 
   if (c === '/workspace') {
     await send(chatId, `Workspace ${bound.ws.id}\nVault ${bound.ws.vault}\nOwner ${bound.ws.owner}\nDEMO=${bound.ws.demo}`)
@@ -468,6 +471,10 @@ export async function handleTelegramUpdate(update: TgUpdate) {
     return { ok: true }
   }
 
+  await send(
+    chatId,
+    'Received. Processing on 0G Storage and Direct TeeML. You will get AUTO-PAY, OWNER APPROVAL, or BLOCKED when it finishes. This chat cannot hold the owner key.'
+  )
   const pdf = payablePdf({
     vendor: parsed.vendor,
     remittance: parsed.remittance,
@@ -475,18 +482,16 @@ export async function handleTelegramUpdate(update: TgUpdate) {
     invoiceNumber: parsed.invoiceNumber,
     kind: 'telegram-request',
   })
-  const out = await ingestPayable({ ws: bound.ws, pdf, source: 'telegram', kind: 'request', analyze: true })
-  const body = out.body as {
-    invoiceHash?: string
-    decision?: string
-    why?: string[]
-    status?: string
-    duplicate?: boolean
-    vendor?: string | null
-    amount_units?: string | null
-    remittance?: string
-  }
-  await logAction(bound.ws.id, telegramUserId, 'submit', { invoiceHash: body.invoiceHash, duplicate: body.duplicate })
-  if (out.statusCode === 409) return { ok: true, duplicate: true, invoiceHash: body.invoiceHash }
-  return { ok: true, invoiceHash: body.invoiceHash, decision: body.decision }
+  const wsRef = bound.ws
+  const telegramUser = telegramUserId
+  void (async () => {
+    try {
+      const out = await ingestPayable({ ws: wsRef, pdf, source: 'telegram', kind: 'request', analyze: true })
+      const body = out.body as { invoiceHash?: string; duplicate?: boolean }
+      await logAction(wsRef.id, telegramUser, 'submit', { invoiceHash: body.invoiceHash, duplicate: body.duplicate })
+    } catch (e) {
+      await send(chatId, `Intake failed. ${e instanceof Error ? e.message : String(e)}. 0 USDC.e moved.`)
+    }
+  })()
+  return { ok: true, accepted: true }
 }
