@@ -8,7 +8,14 @@ import { AuthorityBadge, PageHeader } from '@/components/Product'
 
 export function Inbox() {
   const nav = useNavigate()
-  const queue = useQuery({ queryKey: ['queue'], queryFn: api.queue })
+  const queue = useQuery({
+    queryKey: ['queue'],
+    queryFn: api.queue,
+    refetchInterval: (q) =>
+      (q.state.data?.invoices || []).some((i) => i.pipeline === 'queued' || i.status === 'received' || i.pipeline === 'analyzing')
+        ? 2500
+        : 12_000,
+  })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [over, setOver] = useState(false)
@@ -49,7 +56,7 @@ export function Inbox() {
     <div>
       <PageHeader
         title="Payables"
-        body="PDF is one adapter. A payable can also arrive as an API or MCP request. Encrypted to 0G Storage, read in Direct TeeML. No wallet prompt."
+        body="A payable can arrive as PDF, API, MCP, SDK, or Telegram. Email intake is coming later. Encrypted to 0G Storage, read in Direct TeeML. No wallet prompt."
         extra={<AuthorityBadge kind="agent" />}
       />
       <label
@@ -65,8 +72,8 @@ export function Inbox() {
           onFile(e.dataTransfer.files?.[0])
         }}
       >
-        <span className="font-medium">{busy ? 'Received → encrypting → private analysis → vendor → policy' : 'Drop a vendor invoice PDF'}</span>
-        <span className="mt-2 text-sm text-[var(--fg-muted)]">or choose a file. No mock records.</span>
+        <span className="font-medium">{busy ? 'Received — private analysis queued' : 'Drop a vendor invoice PDF'}</span>
+        <span className="mt-2 text-sm text-[var(--fg-muted)]">or choose a file. Pipeline is real backend state, not a spinner.</span>
         <input
           type="file"
           accept="application/pdf"
@@ -147,7 +154,7 @@ function PayableRequest({ onDone }: { onDone: (hash: string) => void }) {
       <input value={amountUsd} onChange={(e) => setAmountUsd(e.target.value)} aria-label="Amount USD" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 text-sm" />
       <input value={remittance} onChange={(e) => setRemittance(e.target.value)} aria-label="Remittance" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 font-mono text-xs" />
       <button type="submit" disabled={busy} className="h-9 rounded-[4px] bg-white text-sm font-medium text-[#09090b] disabled:opacity-40">
-        {busy ? 'Analyzing' : 'Submit payable'}
+        {busy ? 'Received' : 'Submit payable'}
       </button>
       {err && <p className="md:col-span-5 text-sm text-red-300">{err}</p>}
     </form>
