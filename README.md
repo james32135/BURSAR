@@ -47,7 +47,7 @@ Band 0 (session): $200. Band 1 (owner): $10,000.
 ## Production
 
 - API: [`https://bursar-api.onrender.com`](https://bursar-api.onrender.com/health)
-- Console: [`https://bursarx.vercel.app`](https://bursarx.vercel.app) (Vite app in `apps/web`, `/api` proxied to Render). Set `PRIVY_APP_ID`, `BURSAR_API_URL`, and `BURSAR_MCP_TOKEN_SECRET` in the Vercel project. Never `VITE_*`.
+- Console: [`https://bursarx.vercel.app`](https://bursarx.vercel.app). If Root Directory is `apps/web`, do not set Install to `cd apps/web && npm ci`. Use `sh scripts/vercel-install.sh` (works at repo root or inside `apps/web`).
 
 ## Local run
 
