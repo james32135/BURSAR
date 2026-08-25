@@ -5,7 +5,7 @@
 export const config = { api: { bodyParser: false } }
 
 export default async function handler(req, res) {
-  const base = (process.env.BURSAR_API_URL || '').replace(/\/$/, '')
+  const base = (process.env.BURSAR_API_URL || 'https://bursar-api.onrender.com').replace(/\/$/, '')
   const token = process.env.BURSAR_MCP_TOKEN_SECRET || ''
   if (!base) {
     res.status(503).json({ error: 'BURSAR_API_URL missing' })
