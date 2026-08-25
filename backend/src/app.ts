@@ -5,7 +5,9 @@ import { config } from './config.ts'
 import { getDb, recordEvent } from './db.ts'
 import { payablePdf } from './artifact.ts'
 import { analyzeStoredPayable, acceptPayable } from './ingest.ts'
-import { attentionFromRows, vendorMemoryFor } from './payable.ts'
+import { attentionFromRows, nextActionFor, vendorMemoryFor } from './payable.ts'
+import { listObligations } from './obligations.ts'
+import { detectUnsupportedRail, normalizeKind, SUPPORTED_RAIL } from './rails.ts'
 import { handleTelegramUpdate, issueTelegramBindCode, telegramStatus, unbindTelegram } from './telegram.ts'
 import { emailHealth, ingestEmailInbound } from './email.ts'
 import { executeAllowedPay } from './pay.ts'
@@ -43,6 +45,7 @@ function presentInvoice(row: Record<string, unknown>) {
   const extracted = typeof row.extracted === 'string' ? JSON.parse(row.extracted) : row.extracted
   const flags = typeof row.flags === 'string' ? JSON.parse(row.flags) : row.flags
   const why = typeof row.decision_why === 'string' ? JSON.parse(row.decision_why) : row.decision_why
+  const ex = extracted && typeof extracted === 'object' ? (extracted as Record<string, string>) : {}
   return {
     ...row,
     invoiceHash: row.invoice_hash,
@@ -53,6 +56,14 @@ function presentInvoice(row: Record<string, unknown>) {
     source: row.source || 'pdf',
     kind: row.kind || 'invoice',
     pipeline: row.pipeline || row.status,
+    dueDate: ex.due_date || ex.issue_date || null,
+    rail: ex.payment_rail || SUPPORTED_RAIL,
+    nextAction: nextActionFor({
+      status: String(row.status || ''),
+      decision: row.decision ? String(row.decision) : null,
+      pay_tx: row.pay_tx,
+      flags,
+    }),
   }
 }
 
@@ -140,7 +151,7 @@ app.get('/product', async (c) => {
   const remittanceAllowed = await vendorAllowed(ctx, remittance)
   return c.json({
     name: 'BURSAR',
-    promise: 'The autonomous finance desk for Web3 teams.',
+    promise: 'Autonomous finance inbox for Web3 teams.',
     chainId: config.chainId,
     factory: config.factory || null,
     demo: {
@@ -176,6 +187,11 @@ app.get('/product', async (c) => {
         label: 'API Band-0 USDC.e pay',
         tx: '0x6e3cff64939839eacf888ec92acef3a61825ed0ae624e09e77a9ca910d1de70b',
         url: 'https://chainscan.0g.ai/tx/0x6e3cff64939839eacf888ec92acef3a61825ed0ae624e09e77a9ca910d1de70b',
+      },
+      {
+        label: 'Async Telegram Contoso Band-0 pay',
+        tx: '0x4f055211a54c593c783d340d06a8bb9bd2cb0fc52d811f1856914208c981687b',
+        url: 'https://chainscan.0g.ai/tx/0x4f055211a54c593c783d340d06a8bb9bd2cb0fc52d811f1856914208c981687b',
       },
     ],
     privacy:
@@ -357,26 +373,57 @@ app.post('/payables', async (c) => {
     memo?: string
     kind?: string
     source?: string
+    rail?: string
+    currency?: string
+    cadence?: string
+    dueDate?: string
   }>()
   if (!body.vendor || !body.remittance || !body.amountUsd) {
     return c.json({ error: 'vendor, remittance, and amountUsd required' }, 400)
   }
+  const rail = detectUnsupportedRail({
+    text: [body.memo, body.vendor, body.kind].filter(Boolean).join(' '),
+    currency: body.currency,
+    rail: body.rail,
+  })
+  if (rail) return c.json({ error: 'unsupported-payment-rail', detail: rail.detail, flags: [rail] }, 400)
+  const kind = normalizeKind(body.kind)
   const pdf = payablePdf({
     vendor: body.vendor,
     remittance: body.remittance,
     amountUsd: body.amountUsd,
     invoiceNumber: body.invoiceNumber || `API-${Date.now()}`,
     memo: body.memo,
-    kind: body.kind || 'request',
+    kind,
+    dueDate: body.dueDate,
+    rail: SUPPORTED_RAIL,
   })
   const out = await acceptPayable({
     ws,
     pdf,
     source: body.source || 'api',
-    kind: body.kind || 'request',
+    kind,
     analyze: true,
   })
   return c.json(out.body, out.statusCode)
+})
+
+app.get('/obligations', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  return c.json({ obligations: await listObligations(c.get('ws').id) })
+})
+
+app.post('/obligations', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  return c.json(
+    {
+      error: 'forbidden',
+      detail: 'The agent cannot write obligation bounds. Recurring memory is created from payables that pass policy, not from MCP or SDK writes.',
+    },
+    403
+  )
 })
 
 app.post('/invoices', async (c) => {
