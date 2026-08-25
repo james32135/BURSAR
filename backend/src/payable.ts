@@ -1,0 +1,201 @@
+import type { Flag } from './screen.ts'
+import { getDb } from './db.ts'
+
+export type Decision = 'auto-pay' | 'owner-review' | 'blocked'
+
+export type VendorMemory = {
+  remittance: string
+  name: string
+  paymentCount: number
+  totalPaid: string
+  lastAmount: string | null
+  lastPaidAt: string | null
+  typicalAmount: string | null
+  firstSeen: string | null
+  blockCount: number
+  lastBlockReason: string | null
+  recipients: string[]
+}
+
+export function decide(flags: Flag[], amountUnits: bigint | null, band0Max: bigint): Decision {
+  if (flags.some((f) => f.severity === 'block')) return 'blocked'
+  if (flags.some((f) => f.severity === 'review')) return 'owner-review'
+  if (amountUnits != null && amountUnits > band0Max) return 'owner-review'
+  return 'auto-pay'
+}
+
+export function explainWhy(flags: Flag[], decision: Decision): string[] {
+  if (!flags.length && decision === 'auto-pay') {
+    return ['Trusted path: known or allowlisted remittance, unique hash, within Band 0, no anomaly.']
+  }
+  return flags.map((f) => {
+    if (f.code === 'duplicate-paid' || f.code === 'duplicate-seen') return `Blocked: this payable hash was already ${f.code === 'duplicate-paid' ? 'paid' : 'ingested'}.`
+    if (f.code === 'duplicate-invoice-number') return `Blocked: invoice number ${f.detail} was already seen for this vendor.`
+    if (f.code === 'bad-remittance') return 'Blocked: remittance is missing or not a 20-byte address.'
+    if (f.code === 'vendor-not-allowlisted') return `Blocked: ${f.detail} is not on this vault allowlist.`
+    if (f.code === 'bad-amount') return 'Blocked: amount could not be parsed as USDC.e units.'
+    if (f.code === 'extract-failed') return 'Blocked: Direct TeeML did not return a JSON object.'
+    if (f.code === 'over-band0') return `Owner review: amount exceeds Band 0. Session cannot auto-pay. ${f.detail}`
+    if (f.code === 'recipient-changed') return `Owner review: vendor recipient changed. ${f.detail}`
+    if (f.code === 'amount-anomaly') return `Owner review: amount is far from this vendor typical. ${f.detail}`
+    return `${f.severity === 'block' ? 'Blocked' : 'Owner review'}: ${f.code} ${f.detail}`
+  })
+}
+
+export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory[]> {
+  const db = await getDb()
+  const rows = await db.query(
+    `SELECT remittance, vendor, amount_units, status, flags, created_at, pay_tx, updated_at
+     FROM invoices WHERE workspace_id = $1 AND remittance IS NOT NULL AND remittance <> ''
+     ORDER BY created_at ASC`,
+    [workspaceId]
+  )
+  const map = new Map<string, VendorMemory & { amounts: bigint[] }>()
+  for (const row of rows.rows) {
+    const rem = String(row.remittance).toLowerCase()
+    const cur = map.get(rem) || {
+      remittance: rem,
+      name: String(row.vendor || rem),
+      paymentCount: 0,
+      totalPaid: '0',
+      lastAmount: null,
+      lastPaidAt: null,
+      typicalAmount: null,
+      firstSeen: String(row.created_at || ''),
+      blockCount: 0,
+      lastBlockReason: null,
+      recipients: [rem],
+      amounts: [],
+    }
+    if (row.vendor) cur.name = String(row.vendor)
+    if (!cur.firstSeen) cur.firstSeen = String(row.created_at || '')
+    if (row.status === 'paid') {
+      const amt = BigInt(String(row.amount_units || '0'))
+      cur.paymentCount += 1
+      cur.totalPaid = (BigInt(cur.totalPaid) + amt).toString()
+      cur.lastAmount = amt.toString()
+      cur.lastPaidAt = String(row.updated_at || row.created_at || '')
+      cur.amounts.push(amt)
+    }
+    if (row.status === 'blocked') {
+      cur.blockCount += 1
+      const flags = typeof row.flags === 'string' ? JSON.parse(String(row.flags)) : row.flags
+      const code = Array.isArray(flags) && flags[0]?.code ? String(flags[0].code) : 'blocked'
+      cur.lastBlockReason = code
+    }
+    map.set(rem, cur)
+  }
+  return [...map.values()].map((v) => {
+    const sorted = [...v.amounts].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    const mid = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null
+    return {
+      remittance: v.remittance,
+      name: v.name,
+      paymentCount: v.paymentCount,
+      totalPaid: v.totalPaid,
+      lastAmount: v.lastAmount,
+      lastPaidAt: v.lastPaidAt,
+      typicalAmount: mid == null ? null : mid.toString(),
+      firstSeen: v.firstSeen,
+      blockCount: v.blockCount,
+      lastBlockReason: v.lastBlockReason,
+      recipients: v.recipients,
+    }
+  })
+}
+
+export async function memoryFlags(input: {
+  workspaceId: string
+  vendor: string
+  remittance: string
+  amountUnits: bigint | null
+  invoiceNumber: string
+}): Promise<Flag[]> {
+  const flags: Flag[] = []
+  const db = await getDb()
+  if (input.invoiceNumber) {
+    const dup = await db.query(
+      `SELECT invoice_hash FROM invoices
+       WHERE workspace_id = $1 AND vendor = $2 AND extracted::text ILIKE $3
+       LIMIT 1`,
+      [input.workspaceId, input.vendor, `%"invoice_number":"${input.invoiceNumber}"%`]
+    )
+    if (dup.rows[0]) {
+      flags.push({
+        code: 'duplicate-invoice-number',
+        severity: 'block',
+        detail: input.invoiceNumber,
+      })
+    }
+  }
+  if (!input.remittance) return flags
+  const priorName = await db.query(
+    `SELECT remittance FROM invoices
+     WHERE workspace_id = $1 AND vendor = $2 AND status = 'paid' AND remittance IS NOT NULL
+     ORDER BY updated_at DESC LIMIT 5`,
+    [input.workspaceId, input.vendor]
+  )
+  const seen = priorName.rows.map((r) => String(r.remittance).toLowerCase())
+  if (seen.length && !seen.includes(input.remittance.toLowerCase())) {
+    flags.push({
+      code: 'recipient-changed',
+      severity: 'review',
+      detail: `last ${seen[0]} now ${input.remittance.toLowerCase()}`,
+    })
+  }
+  const paid = await db.query(
+    `SELECT amount_units FROM invoices
+     WHERE workspace_id = $1 AND remittance = $2 AND status = 'paid' AND amount_units IS NOT NULL
+     ORDER BY updated_at DESC LIMIT 8`,
+    [input.workspaceId, input.remittance.toLowerCase()]
+  )
+  const amounts = paid.rows.map((r) => BigInt(String(r.amount_units)))
+  if (input.amountUnits != null && amounts.length >= 2) {
+    const sorted = [...amounts].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    const typical = sorted[Math.floor(sorted.length / 2)]
+    if (typical > 0n && input.amountUnits > (typical * 25n) / 10n) {
+      flags.push({
+        code: 'amount-anomaly',
+        severity: 'review',
+        detail: `${input.amountUnits} vs typical ${typical}`,
+      })
+    }
+  }
+  return flags
+}
+
+export function attentionFromRows(
+  invoices: Array<{ status: string; amount_units?: unknown; flags?: unknown; pay_tx?: unknown }>,
+  remaining: bigint
+) {
+  const flagsOf = (inv: { flags?: unknown }) => {
+    const raw = inv.flags
+    if (!raw) return [] as Flag[]
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw) as Flag[]
+      } catch {
+        return []
+      }
+    }
+    return Array.isArray(raw) ? (raw as Flag[]) : []
+  }
+  const open = invoices.filter((i) => i.status !== 'paid')
+  const autoPay = invoices.filter(
+    (i) => i.status === 'clean' && !i.pay_tx && BigInt(String(i.amount_units || '0')) <= remaining
+  )
+  const ownerReview = invoices.filter((i) => i.status === 'flagged')
+  const blocked = invoices.filter((i) => i.status === 'blocked')
+  const duplicate = invoices.filter((i) => flagsOf(i).some((f) => f.code.startsWith('duplicate')))
+  const totalUnits = open.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  const autoUnits = autoPay.reduce((n, i) => n + BigInt(String(i.amount_units || '0')), 0n)
+  return {
+    new: open.length,
+    autoPay: autoPay.length,
+    ownerReview: ownerReview.length,
+    blocked: blocked.length,
+    duplicate: duplicate.length,
+    totalUnits: totalUnits.toString(),
+    autoApprovedUnits: autoUnits.toString(),
+  }
+}
