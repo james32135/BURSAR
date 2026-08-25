@@ -60,6 +60,11 @@ backend/scripts/reissue-*.ts
 
 # tooling
 _make_history.py
+_deploy.py
+_fixenv.py
+_pg.py
+_render_status.py
+.render-url
 .DS_Store
 Thumbs.db
 *.log
