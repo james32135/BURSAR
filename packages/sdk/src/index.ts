@@ -44,7 +44,7 @@ export class BursarClient {
   getInvoice(hash: string) {
     return this.req('/invoices/' + hash)
   }
-  async submitInvoice(pdf: Buffer | Uint8Array, analyze = true) {
+  async submitInvoice(pdf: Uint8Array, analyze = true) {
     const form = new FormData()
     form.set('file', new Blob([pdf]), 'invoice.pdf')
     return this.req('/invoices?analyze=' + (analyze ? '1' : '0'), { method: 'POST', body: form })
@@ -63,6 +63,21 @@ export class BursarClient {
   }
   pay(hash: string) {
     return this.req('/invoices/' + hash + '/pay', { method: 'POST' })
+  }
+  events() {
+    return this.req('/events')
+  }
+  agentBounds() {
+    return this.req('/workspace/agent-bounds')
+  }
+  async waitForDecision(hash: string, timeoutMs = 180_000) {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      const inv = (await this.getInvoice(hash)) as { status?: string; decision?: string; pipeline?: string }
+      if (inv.decision || ['clean', 'flagged', 'blocked', 'paid'].includes(String(inv.status))) return inv
+      await new Promise((r) => setTimeout(r, 2500))
+    }
+    throw new Error('timeout waiting for payable decision')
   }
   verify(id: string) {
     return fetch(this.opts.baseUrl.replace(/\/$/, '') + '/verify/' + id).then((r) => r.json())
