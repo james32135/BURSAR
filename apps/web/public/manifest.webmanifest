@@ -1,0 +1,17 @@
+{
+  "name": "BURSAR",
+  "short_name": "BURSAR",
+  "description": "Autonomous finance desk. The vault pays. The agent works. Policy is law on 0G Aristotle.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

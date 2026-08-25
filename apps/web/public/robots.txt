@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# BURSAR product origin. Console is this host; API is bursar-api.onrender.com.
