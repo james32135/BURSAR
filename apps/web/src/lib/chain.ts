@@ -92,6 +92,30 @@ export const factoryAbi = [
     outputs: [{ type: 'bool' }],
   },
   {
+    type: 'function',
+    name: 'vaultCount',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'vaultAt',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'index', type: 'uint256' },
+    ],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'vaultsOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'address[]' }],
+  },
+  {
     type: 'event',
     name: 'VaultCreated',
     inputs: [
