@@ -21,7 +21,7 @@ loadEnv()
 
 // Production Render API: set BURSAR_API_URL=https://bursar-api.onrender.com
 const BASE = (process.env.BURSAR_API_URL || 'http://127.0.0.1:8787').replace(/\/$/, '')
-const TOKEN = process.env.BURSAR_MCP_TOKEN_SECRET || ''
+const TOKEN = process.env.BURSAR_WORKSPACE_TOKEN || process.env.BURSAR_MCP_TOKEN_SECRET || ''
 
 async function api(path, init = {}) {
   const headers = { authorization: `Bearer ${TOKEN}`, ...(init.headers || {}) }
