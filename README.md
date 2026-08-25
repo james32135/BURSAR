@@ -44,6 +44,11 @@ Band 0 (session): $200. Band 1 (owner): $10,000.
 
 `/verify` returns **VERIFIED** only when Paid + USDC.e Transfer + Go log `Succeeded to validate the downloaded file` reconstruct.
 
+## Production
+
+- API: `https://bursar-api.onrender.com` (`/health`, `/product`, `/verify/:tx`)
+- Console: deploy `apps/web` with `PRIVY_APP_ID` and proxy `/api` to the Render API. Vercel `bursarx` needs a Vercel account API token from vercel.com/account/tokens, then `BURSAR_API_URL` and `BURSAR_MCP_TOKEN_SECRET` as server env (never `VITE_*`).
+
 ## Local run
 
 1. Copy `.env.example` to `.env`. Never commit `.env`. Never load another project's env.
