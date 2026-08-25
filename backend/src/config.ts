@@ -63,6 +63,8 @@ export const config = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
   telegramBotUsername: (process.env.TELEGRAM_BOT_USERNAME || 'BURSARxbot').replace(/^@/, ''),
+  emailInboundSecret: process.env.EMAIL_INBOUND_SECRET || '',
+  emailInboundAddress: process.env.EMAIL_INBOUND_ADDRESS || '',
 }
 
 export const VAULT_ABI = [
@@ -82,6 +84,7 @@ export const VAULT_ABI = [
   'function ownerPay(address vendor, uint256 amount, bytes32 invoiceHash, bytes32 storageRoot, bytes32 responseHash, address recoveredSigner)',
   'function setPaused(bool v)',
   'function setVendor(address vendor, bool allowed)',
+  'function setBands(uint256 band0Max, uint256 band1Max)',
   'function revokeSession(bytes32 id)',
   'function withdraw(address to, uint256 amount)',
   'event Paid(bytes32 indexed sessionId, address indexed vendor, bytes32 indexed invoiceHash, uint256 amount, bytes32 storageRoot, bytes32 responseHash, address recoveredSigner, uint64 policyVersion)',

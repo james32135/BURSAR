@@ -98,3 +98,16 @@ CREATE TABLE IF NOT EXISTS telegram_actions (
   payload JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS email_messages (
+  workspace_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  attachment_hash TEXT NOT NULL,
+  invoice_hash TEXT,
+  from_addr TEXT,
+  subject TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (workspace_id, message_id)
+);
+
+CREATE INDEX IF NOT EXISTS email_messages_hash_idx ON email_messages (workspace_id, attachment_hash);

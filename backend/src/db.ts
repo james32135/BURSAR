@@ -119,6 +119,19 @@ async function migrate(client: Db) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS email_messages (
+      workspace_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      attachment_hash TEXT NOT NULL,
+      invoice_hash TEXT,
+      from_addr TEXT,
+      subject TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (workspace_id, message_id)
+    )
+  `)
+  await client.query(`CREATE INDEX IF NOT EXISTS email_messages_hash_idx ON email_messages (workspace_id, attachment_hash)`)
 }
 
 export async function getDb(): Promise<Db> {
