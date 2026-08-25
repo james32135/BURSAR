@@ -8,6 +8,7 @@ import { InvoicePaper } from '@/components/InvoicePaper'
 import { StatusChip } from '@/components/StatusChip'
 import { AuthorityBadge } from '@/components/Product'
 import { PipelineStrip } from '@/components/PipelineStrip'
+import { ProofTrail, invoiceTrail } from '@/components/ProofTrail'
 import { useState } from 'react'
 import { LIVE } from '@/lib/live'
 import { loadWorkspace } from '@/lib/workspace'
@@ -90,6 +91,9 @@ export function InvoiceDetail() {
   if (inv.pay_tx) {
     cta = 'PAID'
     whyText = 'USDC.e already moved for this payable hash.'
+  } else if (blocked) {
+    cta = 'BLOCKED'
+    whyText = flags.map((f) => `${f.code}: ${f.detail}`).join(' ') || 'Policy denied. 0 USDC.e moved.'
   } else if (canPay) {
     cta = 'PAY'
     whyText = `Band 0 (${usd(band0)}). Vendor allowed. Session authorized. No owner signature.`
@@ -115,14 +119,14 @@ export function InvoiceDetail() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={inv.status} />
-            {canPay ? <AuthorityBadge kind="agent" /> : over ? <AuthorityBadge kind="owner" /> : null}
+            {canPay ? <AuthorityBadge kind="agent" /> : over && !blocked ? <AuthorityBadge kind="owner" /> : null}
           </div>
           <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">{ex.vendor_name || inv.vendor || 'Payable'}</h1>
           <p className="mt-1 font-mono text-[10px] uppercase text-[var(--fg-muted)]">{inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.decision || inv.status}</p>
         </div>
         {canPay ? (
           <MagneticButton variant="seal" onClick={() => setOpen(true)}>PAY</MagneticButton>
-        ) : over && !inv.pay_tx ? (
+        ) : over && !blocked && !inv.pay_tx ? (
           <MagneticButton variant="ghost" disabled={!canOwnerPay} onClick={() => setOwnerOpen(true)}>
             REQUEST APPROVAL
           </MagneticButton>
