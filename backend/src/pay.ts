@@ -94,7 +94,15 @@ export async function executeAllowedPay(ws: Workspace, hash: string): Promise<Pa
     pipeline: inv.pipeline == null ? null : String(inv.pipeline),
     updatedAt: inv.updated_at == null ? null : String(inv.updated_at),
   })
-  if (gate) return { ok: false, error: gate.error, status: gate.status, flags }
+  if (gate) {
+    if (String(inv.pipeline || '') === 'paying' && gate.error !== 'pay-in-flight') {
+      await db.query("UPDATE invoices SET pipeline='ready', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [
+        ws.id,
+        hash,
+      ])
+    }
+    return { ok: false, error: gate.error, status: gate.status, flags }
+  }
   await db.query("UPDATE invoices SET pipeline='paying', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [
     ws.id,
     hash,

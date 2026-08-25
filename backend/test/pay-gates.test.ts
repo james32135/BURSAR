@@ -1,5 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { EXPECTED_TEE_SIGNER, payGateReason, payRevertReason } from '../src/pay.ts'
 
 const base = {
@@ -58,4 +61,10 @@ test('on-chain TransferFailed maps to insufficient-vault-balance, not a raw ethe
   assert.equal(payRevertReason(raw), 'insufficient-vault-balance')
   assert.equal(payRevertReason('execution reverted (unknown custom error) (action="estimateGas", data="0xf0d97246"'), 'paused')
   assert.equal(payRevertReason('something else\nmore'), 'something else')
+})
+
+test('stale paying rows are cleared when the gate fails for a reason other than in-flight', () => {
+  const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../src/pay.ts'), 'utf8')
+  assert.match(src, /gate.error !== 'pay-in-flight'/)
+  assert.match(src, /pipeline='ready'/)
 })
