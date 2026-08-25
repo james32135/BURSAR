@@ -27,7 +27,7 @@ function envFile(): Record<string, string> {
 export default defineConfig(() => {
   const env = envFile()
   const token = env.BURSAR_MCP_TOKEN_SECRET || process.env.BURSAR_MCP_TOKEN_SECRET || ''
-  const privyAppId = env.PRIVY_APP_ID || process.env.PRIVY_APP_ID || ''
+  const privyAppId = env.PRIVY_APP_ID || process.env.PRIVY_APP_ID || 'cmt7x9rac00220cla0me1vobe'
   return {
     plugins: [react(), tailwindcss()],
     resolve: { alias: { '@': resolve(here, 'src') } },
