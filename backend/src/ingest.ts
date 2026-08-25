@@ -1,7 +1,7 @@
 import { getDb, recordEvent } from './db.ts'
 import { rasterizePdf } from './rasterize.ts'
 import { screenInvoice, type Flag } from './screen.ts'
-import { encryptUploadProve } from './storage.ts'
+import { downloadDecryptPdf, encryptUploadProve, type StoragePut } from './storage.ts'
 import { extractInvoicePng } from './teeml.ts'
 import { parseUsdToUnits, sha256Bytes32 } from './util.ts'
 import { onchainInvoice, registerInvoice, vendorAllowed, vaultState } from './vault.ts'
@@ -56,6 +56,56 @@ export async function ingestPayable(args: {
     }
   }
 
+  return finalizeAnalysis(ws, invoiceHash, pdf, source, kind, stored, registerTx, chain.paid)
+}
+
+export async function analyzeStoredPayable(ws: Workspace, invoiceHash: string) {
+  const db = await getDb()
+  const rows = await db.query('SELECT * FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2', [ws.id, invoiceHash])
+  const row = rows.rows[0]
+  if (!row) return { statusCode: 404 as const, body: { error: 'not found' } }
+  const status = String(row.status || '')
+  const pipeline = String(row.pipeline || '')
+  if (status !== 'stored' && pipeline !== 'stored') {
+    return { statusCode: 409 as const, body: { error: 'already analyzed', status, pipeline } }
+  }
+  const root = String(row.storage_root || '')
+  if (!root) return { statusCode: 400 as const, body: { error: 'missing storage_root' } }
+  const pdf = await downloadDecryptPdf(root)
+  const stored: StoragePut = {
+    root,
+    flowTx: String(row.flow_tx || ''),
+    txSeq: row.tx_seq == null ? null : Number(row.tx_seq),
+    recipientPubKey: '',
+    originalHash: invoiceHash.replace(/^0x/, ''),
+    goProofOk: Boolean(row.go_proof_ok),
+    goProofLog: String(row.go_proof_log || ''),
+    decryptMatch: true,
+  }
+  const chain = await onchainInvoice(ws, invoiceHash)
+  return finalizeAnalysis(
+    ws,
+    invoiceHash,
+    pdf,
+    String(row.source || 'pdf'),
+    String(row.kind || 'invoice'),
+    stored,
+    String(row.register_tx || ''),
+    chain.paid
+  )
+}
+
+async function finalizeAnalysis(
+  ws: Workspace,
+  invoiceHash: string,
+  pdf: Buffer,
+  source: string,
+  kind: string,
+  stored: StoragePut,
+  registerTx: string,
+  alreadyPaid: boolean
+) {
+  const db = await getDb()
   await recordEvent(ws.id, invoiceHash, 'analyzing', { model: '0gm-1.0-35b-a3b' })
   const png = await rasterizePdf(pdf)
   const tee = await extractInvoicePng(png, invoiceHash)
@@ -72,7 +122,7 @@ export async function ingestPayable(args: {
   await recordEvent(ws.id, invoiceHash, 'checking_policy', { band0: vs.band0Max })
   const screened = screenInvoice({
     invoiceHash,
-    alreadyPaid: chain.paid,
+    alreadyPaid,
     alreadySeen: false,
     extracted: tee.extracted,
     remittanceAllowed: allowed,
