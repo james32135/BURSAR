@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { api, flagsOf, hashOf } from '@/lib/api'
+import { api, attentionFromInvoices, flagsOf, hashOf } from '@/lib/api'
 import { usd } from '@/lib/cn'
 import { StatusChip } from '@/components/StatusChip'
 import { AuthorityBadge } from '@/components/Product'
@@ -9,13 +9,14 @@ import { loadWorkspace } from '@/lib/workspace'
 export function Overview() {
   const health = useQuery({ queryKey: ['health'], queryFn: api.health, refetchInterval: 15_000 })
   const wsQ = useQuery({ queryKey: ['workspace'], queryFn: api.workspace, retry: false })
-  const attention = useQuery({ queryKey: ['attention'], queryFn: api.attention })
+  const attention = useQuery({ queryKey: ['attention'], queryFn: api.attention, retry: false })
+  const queue = useQuery({ queryKey: ['queue'], queryFn: api.queue })
   const events = useQuery({ queryKey: ['events'], queryFn: api.events })
   const vs = wsQ.data?.vaultState || health.data?.vaultState
   const session = wsQ.data?.session || health.data?.session
   const stats = wsQ.data?.stats
-  const att = attention.data
-  const invoices = att?.payables || []
+  const invoices = attention.data?.payables || queue.data?.invoices || []
+  const att = attention.data || attentionFromInvoices(invoices, session?.remaining || '0')
   const stored = loadWorkspace()
   const demo = stored?.demo ?? true
   const exceptions = invoices.filter((i) => i.status === 'flagged' || i.status === 'blocked')
