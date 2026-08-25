@@ -5,7 +5,7 @@ RUN git clone --depth 1 https://github.com/0gfoundation/0g-storage-client.git .
 RUN go build -o /out/0g-storage-client .
 
 FROM node:22-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip \
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip poppler-utils \
   && pip3 install --break-system-packages pypdfium2 \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=go-client /out/0g-storage-client /usr/local/bin/0g-storage-client
