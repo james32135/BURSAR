@@ -20,31 +20,53 @@ export async function ingestPayable(args: {
   if (pdf.length < 20) throw Object.assign(new Error('empty payable'), { status: 400 })
   const invoiceHash = sha256Bytes32(pdf)
   const db = await getDb()
-  await recordEvent(ws.id, invoiceHash, 'received', { source, kind })
   const existing = await db.query(
-    'SELECT invoice_hash, status FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2',
+    'SELECT invoice_hash, status, pipeline FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2',
     [ws.id, invoiceHash]
   )
+  if (!existing.rows[0]) await recordEvent(ws.id, invoiceHash, 'received', { source, kind })
   if (existing.rows[0]) {
-    try {
-      const { notifyWorkspacePayable } = await import('./telegram.ts')
-      await notifyWorkspacePayable(ws.id, { invoiceHash, duplicate: true, status: String(existing.rows[0].status) })
-    } catch {
-      /* alerts must not fail ingest */
+    const st = String(existing.rows[0].status)
+    const pipeline = String(existing.rows[0].pipeline || '')
+    if (st === 'stored' || pipeline === 'stored') {
+      if (analyze) return analyzeStoredPayable(ws, invoiceHash)
+      return { statusCode: 200 as const, body: { invoiceHash, status: 'stored', pipeline: 'stored', workspaceId: ws.id } }
     }
-    return { statusCode: 409 as const, body: { duplicate: true, invoiceHash, status: existing.rows[0].status } }
+    if (st !== 'received' && st !== 'queued') {
+      try {
+        const { notifyWorkspacePayable } = await import('./telegram.ts')
+        await notifyWorkspacePayable(ws.id, { invoiceHash, duplicate: true, status: st })
+      } catch {
+        /* alerts must not fail ingest */
+      }
+      return { statusCode: 409 as const, body: { duplicate: true, invoiceHash, status: st } }
+    }
+  } else {
+    const chainPaid = await onchainInvoice(ws, invoiceHash)
+    if (chainPaid.paid) {
+      return { statusCode: 409 as const, body: { duplicate: true, invoiceHash, status: 'paid-on-chain' } }
+    }
   }
-  const chain = await onchainInvoice(ws, invoiceHash)
-  if (chain.paid) {
-    return { statusCode: 409 as const, body: { duplicate: true, invoiceHash, status: 'paid-on-chain' } }
-  }
+  const chain = existing.rows[0] ? await onchainInvoice(ws, invoiceHash) : { paid: false }
 
   await recordEvent(ws.id, invoiceHash, 'encrypting', { source })
   const stored = await encryptUploadProve(pdf, invoiceHash.slice(2))
   const registerTx = await registerInvoice(ws, invoiceHash, stored.root)
   await db.query(
     `INSERT INTO invoices (workspace_id, invoice_hash, storage_root, flow_tx, tx_seq, go_proof_ok, go_proof_log, status, register_tx, source, kind, pipeline)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'stored',$8,$9,$10,'stored')`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'stored',$8,$9,$10,'stored')
+     ON CONFLICT (workspace_id, invoice_hash) DO UPDATE SET
+       storage_root = EXCLUDED.storage_root,
+       flow_tx = EXCLUDED.flow_tx,
+       tx_seq = EXCLUDED.tx_seq,
+       go_proof_ok = EXCLUDED.go_proof_ok,
+       go_proof_log = EXCLUDED.go_proof_log,
+       status = 'stored',
+       register_tx = EXCLUDED.register_tx,
+       source = EXCLUDED.source,
+       kind = EXCLUDED.kind,
+       pipeline = 'stored',
+       updated_at = NOW()`,
     [ws.id, invoiceHash, stored.root, stored.flowTx, stored.txSeq, stored.goProofOk, stored.goProofLog, registerTx, source, kind]
   )
   await recordEvent(ws.id, invoiceHash, 'stored', { root: stored.root, flowTx: stored.flowTx, registerTx })
@@ -57,6 +79,70 @@ export async function ingestPayable(args: {
   }
 
   return finalizeAnalysis(ws, invoiceHash, pdf, source, kind, stored, registerTx, chain.paid)
+}
+
+export async function acceptPayable(args: {
+  ws: Workspace
+  pdf: Buffer
+  source: string
+  kind: string
+  analyze?: boolean
+}) {
+  const { ws, pdf, source, kind } = args
+  const analyze = args.analyze !== false
+  if (pdf.length < 20) return { statusCode: 400 as const, body: { error: 'empty payable' } }
+  const invoiceHash = sha256Bytes32(pdf)
+  const db = await getDb()
+  await recordEvent(ws.id, invoiceHash, 'received', { source, kind })
+  const existing = await db.query(
+    'SELECT invoice_hash, status, pipeline FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2',
+    [ws.id, invoiceHash]
+  )
+  if (existing.rows[0]) {
+    const st = String(existing.rows[0].status)
+    if (st !== 'received' && st !== 'queued') {
+      try {
+        const { notifyWorkspacePayable } = await import('./telegram.ts')
+        await notifyWorkspacePayable(ws.id, { invoiceHash, duplicate: true, status: st })
+      } catch {
+        /* alerts must not fail ingest */
+      }
+      return { statusCode: 409 as const, body: { duplicate: true, invoiceHash, status: st } }
+    }
+    const running = await db.query(
+      `SELECT id FROM jobs WHERE workspace_id = $1 AND invoice_hash = $2 AND status IN ('queued','running') LIMIT 1`,
+      [ws.id, invoiceHash]
+    )
+    if (!running.rows[0]) {
+      const { enqueueIngestJob } = await import('./jobs.ts')
+      await enqueueIngestJob({ workspaceId: ws.id, invoiceHash, pdf, source, kind, analyze })
+    }
+    return {
+      statusCode: 202 as const,
+      body: { invoiceHash, status: 'received', pipeline: 'queued', accepted: true, workspaceId: ws.id, source, kind },
+    }
+  }
+  const chain = await onchainInvoice(ws, invoiceHash)
+  if (chain.paid) {
+    return { statusCode: 409 as const, body: { duplicate: true, invoiceHash, status: 'paid-on-chain' } }
+  }
+  await db.query(
+    `INSERT INTO invoices (workspace_id, invoice_hash, status, source, kind, pipeline)
+     VALUES ($1,$2,'received',$3,$4,'queued')`,
+    [ws.id, invoiceHash, source, kind]
+  )
+  const { enqueueIngestJob } = await import('./jobs.ts')
+  await enqueueIngestJob({ workspaceId: ws.id, invoiceHash, pdf, source, kind, analyze })
+  try {
+    const { notifyWorkspaceProcessing } = await import('./telegram.ts')
+    await notifyWorkspaceProcessing(ws.id, invoiceHash)
+  } catch {
+    /* alerts must not fail intake */
+  }
+  return {
+    statusCode: 202 as const,
+    body: { invoiceHash, status: 'received', pipeline: 'queued', accepted: true, workspaceId: ws.id, source, kind },
+  }
 }
 
 export async function analyzeStoredPayable(ws: Workspace, invoiceHash: string) {
@@ -131,6 +217,7 @@ async function finalizeAnalysis(
   })
   const extra = await memoryFlags({
     workspaceId: ws.id,
+    invoiceHash,
     vendor: tee.extracted?.vendor_name || '',
     remittance,
     amountUnits,

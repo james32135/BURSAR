@@ -111,3 +111,18 @@ CREATE TABLE IF NOT EXISTS email_messages (
 );
 
 CREATE INDEX IF NOT EXISTS email_messages_hash_idx ON email_messages (workspace_id, attachment_hash);
+
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'queued',
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  invoice_hash TEXT,
+  error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS jobs_status_idx ON jobs (status, created_at);
+CREATE INDEX IF NOT EXISTS jobs_invoice_idx ON jobs (workspace_id, invoice_hash);
