@@ -118,9 +118,10 @@ export function Inbox() {
 }
 
 function PayableRequest({ onDone }: { onDone: (hash: string) => void }) {
-  const [vendor, setVendor] = useState('Contoso Freight LLC')
+  const [vendor, setVendor] = useState('Northwind Compute Ltd')
   const [amountUsd, setAmountUsd] = useState('0.001')
   const [remittance, setRemittance] = useState('0x1111111111111111111111111111111111111111')
+  const [invoiceNumber, setInvoiceNumber] = useState(() => `NW-0G-${Date.now()}`)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   async function submit(e: React.FormEvent) {
@@ -128,7 +129,7 @@ function PayableRequest({ onDone }: { onDone: (hash: string) => void }) {
     setBusy(true)
     setErr('')
     try {
-      const out = await api.submitPayable({ vendor, remittance, amountUsd, kind: 'request' })
+      const out = await api.submitPayable({ vendor, remittance, amountUsd, invoiceNumber, kind: 'request' })
       onDone(out.invoiceHash || out.invoice_hash)
     } catch (e) {
       const body = (e as { body?: { duplicate?: boolean; invoiceHash?: string } }).body
@@ -139,15 +140,16 @@ function PayableRequest({ onDone }: { onDone: (hash: string) => void }) {
     }
   }
   return (
-    <form onSubmit={submit} className="mt-6 grid gap-3 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-4">
-      <p className="md:col-span-4 font-mono text-[10px] uppercase text-[var(--fg-muted)]">Payment request (API adapter)</p>
+    <form onSubmit={submit} className="mt-6 grid gap-3 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-5">
+      <p className="md:col-span-5 font-mono text-[10px] uppercase text-[var(--fg-muted)]">Payment request (API adapter). Crypto rail: USDC.e on 0G Aristotle 16661. Not a bank wire.</p>
       <input value={vendor} onChange={(e) => setVendor(e.target.value)} aria-label="Vendor" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 text-sm" />
+      <input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} aria-label="Invoice number" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 text-sm" />
       <input value={amountUsd} onChange={(e) => setAmountUsd(e.target.value)} aria-label="Amount USD" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 text-sm" />
       <input value={remittance} onChange={(e) => setRemittance(e.target.value)} aria-label="Remittance" className="h-9 rounded-[4px] border border-[var(--border)] bg-[#09090b] px-3 font-mono text-xs" />
       <button type="submit" disabled={busy} className="h-9 rounded-[4px] bg-white text-sm font-medium text-[#09090b] disabled:opacity-40">
         {busy ? 'Analyzing' : 'Submit payable'}
       </button>
-      {err && <p className="md:col-span-4 text-sm text-red-300">{err}</p>}
+      {err && <p className="md:col-span-5 text-sm text-red-300">{err}</p>}
     </form>
   )
 }
