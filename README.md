@@ -1,6 +1,6 @@
 # BURSAR
 
-Autonomous finance desk for Web3 teams on 0G Aristotle **16661**.
+Autonomous finance inbox for Web3 teams on 0G Aristotle **16661**.
 
 Your agent handles the finance work. Your policy controls the money. The agent never owns the treasury. The vault is the final authority.
 
@@ -44,6 +44,7 @@ Band 0 (session): $200. Band 1 (owner): $10,000.
 - Chrome Band-0: [`0x817ff501…`](https://chainscan.0g.ai/tx/0x817ff5010e0cb04293b2c0241e15e635cf5a2cc0e8e2511379c4ad0fef262e2b)
 - API Band-0: [`0x6e3cff64…`](https://chainscan.0g.ai/tx/0x6e3cff64939839eacf888ec92acef3a61825ed0ae624e09e77a9ca910d1de70b)
 - Owner-workspace Band-0: [`0x0290bcb0…`](https://chainscan.0g.ai/tx/0x0290bcb024eeba773d9f97c493e8e6abb0da4191606feec9e8cf0ffff7919f49)
+- Async Telegram Contoso Band-0: [`0x4f055211…`](https://chainscan.0g.ai/tx/0x4f055211a54c593c783d340d06a8bb9bd2cb0fc52d811f1856914208c981687b)
 - Factory deploy: [`0x3ff08a8b…`](https://chainscan.0g.ai/tx/0x3ff08a8b4d1756439c80a8cfe5d3e47eb2fd81b12d0d9f13ec0278624667bac8)
 - DEMO vault deploy: [`0x9cd27adb…`](https://chainscan.0g.ai/tx/0x9cd27adb5b8ff8920048cb75649f82d199f59b9cd9cd3e707f29ad8cc613fa21)
 

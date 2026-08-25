@@ -18,26 +18,28 @@ const bursar = new BursarClient({
 
 await bursar.health()
 await bursar.attention()
-await bursar.submitPayable({ vendor, remittance, amountUsd })
-await bursar.vendorMemory()
+await bursar.createPayable({ vendor, remittance, amountUsd })
+await bursar.explainDecision(hash)
+await bursar.vendors()
 await bursar.payAllowed()
-await bursar.verify(txHash)`
+await bursar.verifyPayment(txHash)`
 
 const MCP = `node packages/mcp/src/server.mjs
 
 attention
 submit_payable
-inspect_invoice
+inspect_payable
 explain_decision
 request_approval
 execute_allowed_payment
-pay_allowed_sequential
-get_proof
 verify_payment
+payments
+vendors
+policy
 
 # forbidden
 setVendor withdraw setPaused setBands
-createSession transferOwnership ownerPay`
+createSession transferOwnership ownerPay pause revoke addVendor`
 
 export function Settings() {
   const qc = useQueryClient()
@@ -157,7 +159,7 @@ export function Settings() {
       <div className="mt-10 grid gap-6 lg:grid-cols-2">
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-display text-xl font-bold">MCP</h2>
-          <p className="mt-2 text-sm text-[var(--fg-muted)]">Give an existing agent BURSAR access without treasury ownership. Tools: attention, submit_payable, explain_decision, execute_allowed_payment.</p>
+          <p className="mt-2 text-sm text-[var(--fg-muted)]">Give an existing agent BURSAR access without treasury ownership. Tools: attention, submit_payable, inspect_payable, explain_decision, execute_allowed_payment, verify_payment, payments, vendors, policy.</p>
           <pre className="mt-4 overflow-auto font-mono text-[11px] text-[var(--fg-muted)]">{MCP}</pre>
         </div>
         <div className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">

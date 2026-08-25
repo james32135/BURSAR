@@ -32,5 +32,10 @@ export const LIVE = {
       label: 'Owner-workspace Band-0 pay',
       tx: '0x0290bcb024eeba773d9f97c493e8e6abb0da4191606feec9e8cf0ffff7919f49',
     },
+    {
+      label: 'Async Telegram Contoso Band-0 pay',
+      tx: '0x4f055211a54c593c783d340d06a8bb9bd2cb0fc52d811f1856914208c981687b',
+      invoice: '0x1e85222c0ed7b8bd03c3db0a61664b77fee4801ad572ef7a7331f7eb170080af',
+    },
   ],
 } as const

@@ -128,14 +128,13 @@ export function Landing() {
         <section className="grid min-h-[100dvh] grid-cols-1 lg:grid-cols-2">
           <div className="flex flex-col justify-center bg-[#f4f4f5] px-6 pb-16 pt-24 text-[#18181b] md:px-12">
             <p className="hero-reveal mb-4 text-xs font-medium uppercase tracking-[0.22em] text-[#52525b]">
-              The autonomous finance desk for Web3 teams
+              Autonomous finance inbox for Web3 teams
             </p>
             <h1 className="hero-reveal font-display max-w-2xl text-[clamp(2.3rem,4.2vw,3.7rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-balance">
-              Your team has money obligations. BURSAR handles the boring work.
+              Your finance inbox is waiting.
             </h1>
             <p className="hero-reveal mt-6 max-w-md text-base leading-relaxed text-[#52525b]">
-              The agent can act. The vault enforces the rules. 0G handles private computation and decentralized storage.
-              Only allowed money moves. Every payment leaves a proof.
+              Telegram, API, MCP, SDK, and PDF become one payable. Private 0G processing. Policy decides money. The agent never owns the vault.
             </p>
             <div className="hero-reveal mt-8 flex flex-wrap gap-3">
               <Link
@@ -325,7 +324,7 @@ export function Landing() {
 
         <footer className="flex flex-col gap-3 border-t border-white/10 px-6 py-10 text-sm text-[#a1a1aa] md:flex-row md:items-center md:justify-between md:px-12">
           <span className="font-display font-bold text-white">BURSAR</span>
-          <span>Autonomous finance desk. The vault is the final authority.</span>
+          <span>Autonomous finance inbox. The vault is the final authority.</span>
         </footer>
       </main>
     </SmoothScroll>
