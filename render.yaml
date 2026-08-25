@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: bursar-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: BURSAR_CHAIN_ID
+        value: "16661"
+      - key: BURSAR_RPC_URL
+        value: https://evmrpc.0g.ai
+      - key: BURSAR_EXPLORER_URL
+        value: https://chainscan.0g.ai
+      - key: BURSAR_STORAGESCAN_URL
+        value: https://storagescan.0g.ai
+      - key: BURSAR_API_PORT
+        value: "8787"
+      - key: BURSAR_DATABASE_URL
+        fromDatabase:
+          name: bursar-pg
+          property: connectionString
+databases:
+  - name: bursar-pg
+    plan: basic-256mb
