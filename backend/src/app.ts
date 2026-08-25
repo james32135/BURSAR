@@ -3,16 +3,14 @@ import { cors } from 'hono/cors'
 import { ethers } from 'ethers'
 import { config } from './config.ts'
 import { getDb, recordEvent } from './db.ts'
-import { rasterizePdf } from './rasterize.ts'
-import { screenInvoice } from './screen.ts'
-import { encryptUploadProve } from './storage.ts'
-import { extractInvoicePng } from './teeml.ts'
-import { parseUsdToUnits, sha256Bytes32 } from './util.ts'
+import { payablePdf } from './artifact.ts'
+import { ingestPayable } from './ingest.ts'
+import { attentionFromRows, vendorMemoryFor } from './payable.ts'
+import { handleTelegramUpdate } from './telegram.ts'
 import { verifyPayment } from './verify.ts'
 import {
   onchainInvoice,
   onchainPayment,
-  registerInvoice,
   sessionPay,
   sessionState,
   vaultState,
@@ -39,11 +37,17 @@ app.onError((err, c) => {
 function presentInvoice(row: Record<string, unknown>) {
   const extracted = typeof row.extracted === 'string' ? JSON.parse(row.extracted) : row.extracted
   const flags = typeof row.flags === 'string' ? JSON.parse(row.flags) : row.flags
+  const why = typeof row.decision_why === 'string' ? JSON.parse(row.decision_why) : row.decision_why
   return {
     ...row,
     invoiceHash: row.invoice_hash,
     extracted,
     flags,
+    why: why || [],
+    decision: row.decision,
+    source: row.source || 'pdf',
+    kind: row.kind || 'invoice',
+    pipeline: row.pipeline || row.status,
   }
 }
 
@@ -221,7 +225,7 @@ app.get('/queue', async (c) => {
   const ws = c.get('ws')
   const db = await getDb()
   const rows = await db.query(
-    `SELECT invoice_hash, status, flags, extracted, vendor, remittance, amount_units, pay_tx, storage_root, flow_tx, tx_seq, go_proof_ok, attestation_ok, recovered_signer, created_at, updated_at
+    `SELECT invoice_hash, status, flags, extracted, vendor, remittance, amount_units, pay_tx, storage_root, flow_tx, tx_seq, go_proof_ok, attestation_ok, recovered_signer, created_at, updated_at, source, kind, pipeline, decision, decision_why
      FROM invoices WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 50`,
     [ws.id]
   )
@@ -251,6 +255,61 @@ app.get('/invoices/:hash', async (c) => {
   return c.json(presentInvoice(rows.rows[0]))
 })
 
+app.get('/attention', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const db = await getDb()
+  const rows = await db.query('SELECT * FROM invoices WHERE workspace_id = $1 ORDER BY created_at DESC', [ws.id])
+  const session = await sessionState(ws)
+  const remaining = BigInt(session.remaining)
+  return c.json({
+    ...attentionFromRows(rows.rows, remaining),
+    payables: rows.rows.map(presentInvoice),
+  })
+})
+
+app.get('/vendors/memory', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  return c.json({ vendors: await vendorMemoryFor(ws.id) })
+})
+
+app.post('/payables', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const body = await c.req.json<{
+    vendor?: string
+    remittance?: string
+    amountUsd?: string
+    invoiceNumber?: string
+    memo?: string
+    kind?: string
+    source?: string
+  }>()
+  if (!body.vendor || !body.remittance || !body.amountUsd) {
+    return c.json({ error: 'vendor, remittance, and amountUsd required' }, 400)
+  }
+  const pdf = payablePdf({
+    vendor: body.vendor,
+    remittance: body.remittance,
+    amountUsd: body.amountUsd,
+    invoiceNumber: body.invoiceNumber || `API-${Date.now()}`,
+    memo: body.memo,
+    kind: body.kind || 'request',
+  })
+  const out = await ingestPayable({
+    ws,
+    pdf,
+    source: body.source || 'api',
+    kind: body.kind || 'request',
+    analyze: true,
+  })
+  return c.json(out.body, out.statusCode)
+})
+
 app.post('/invoices', async (c) => {
   const denied = await requireWorkspace(c)
   if (denied) return denied
@@ -264,97 +323,14 @@ app.post('/invoices', async (c) => {
     const raw = await c.req.arrayBuffer()
     pdf = Buffer.from(raw)
   }
-  if (pdf.length < 20) return c.json({ error: 'empty invoice' }, 400)
-  const invoiceHash = sha256Bytes32(pdf)
-  const db = await getDb()
-  const existing = await db.query(
-    'SELECT invoice_hash, status FROM invoices WHERE workspace_id = $1 AND invoice_hash = $2',
-    [ws.id, invoiceHash]
-  )
-  if (existing.rows[0]) {
-    return c.json({ duplicate: true, invoiceHash, status: existing.rows[0].status }, 409)
-  }
-  const chain = await onchainInvoice(ws, invoiceHash)
-  if (chain.paid) return c.json({ duplicate: true, invoiceHash, status: 'paid-on-chain' }, 409)
-
-  const stored = await encryptUploadProve(pdf, invoiceHash.slice(2))
-  const registerTx = await registerInvoice(ws, invoiceHash, stored.root)
-  await db.query(
-    `INSERT INTO invoices (workspace_id, invoice_hash, storage_root, flow_tx, tx_seq, go_proof_ok, go_proof_log, status, register_tx)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'stored',$8)`,
-    [ws.id, invoiceHash, stored.root, stored.flowTx, stored.txSeq, stored.goProofOk, stored.goProofLog, registerTx]
-  )
-  await recordEvent(ws.id, invoiceHash, 'stored', { root: stored.root, flowTx: stored.flowTx, registerTx })
-
-  const analyze = c.req.query('analyze') !== '0'
-  if (!analyze) {
-    return c.json({ invoiceHash, storage: stored, registerTx, status: 'stored', workspaceId: ws.id })
-  }
-
-  const png = await rasterizePdf(pdf)
-  const tee = await extractInvoicePng(png, invoiceHash)
-  let amountUnits: bigint | null = null
-  try {
-    if (tee.extracted?.total_usd) amountUnits = parseUsdToUnits(tee.extracted.total_usd)
-  } catch {
-    amountUnits = null
-  }
-  const remittance = tee.extracted?.remittance_usdc_e || ''
-  const allowed = /^0x[a-fA-F0-9]{40}$/.test(remittance) ? await vendorAllowed(ws, remittance) : false
-  const vs = await vaultState(ws)
-  const screened = screenInvoice({
-    invoiceHash,
-    alreadyPaid: chain.paid,
-    alreadySeen: false,
-    extracted: tee.extracted,
-    remittanceAllowed: allowed,
-    amountUnits,
-    band0Max: BigInt(vs.band0Max),
+  const out = await ingestPayable({
+    ws,
+    pdf,
+    source: 'pdf',
+    kind: 'invoice',
+    analyze: c.req.query('analyze') !== '0',
   })
-  const att = tee.attestation
-  await db.query(
-    `UPDATE invoices SET status=$3, flags=$4::jsonb, extracted=$5::jsonb, vendor=$6, remittance=$7, amount_units=$8,
-      chat_id=$9, signed_text=$10, request_half=$11, response_hash=$12, recovered_signer=$13, process_response=$14,
-      attestation_ok=$15, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2`,
-    [
-      ws.id,
-      invoiceHash,
-      screened.status,
-      JSON.stringify(screened.flags),
-      JSON.stringify(tee.extracted || {}),
-      tee.extracted?.vendor_name || null,
-      remittance || null,
-      amountUnits == null ? null : amountUnits.toString(),
-      tee.chatId,
-      att.ok ? att.signedText : null,
-      att.ok ? att.requestHalf : null,
-      att.ok ? att.responseHash : null,
-      att.ok ? att.recoveredSigner : null,
-      String(tee.processResponse),
-      att.ok,
-    ]
-  )
-  await recordEvent(ws.id, invoiceHash, 'analyzed', { status: screened.status, flags: screened.flags, chatId: tee.chatId })
-  return c.json({
-    invoiceHash,
-    invoice_hash: invoiceHash,
-    workspaceId: ws.id,
-    storage: stored,
-    registerTx,
-    extraction: tee.extracted,
-    extracted: tee.extracted,
-    vendor: tee.extracted?.vendor_name || null,
-    remittance,
-    amount_units: amountUnits == null ? null : amountUnits.toString(),
-    attestation: att,
-    processResponse: tee.processResponse,
-    originalPostHash: tee.originalPostHash,
-    requestHalfNote: 'broker rewrites request; original POST sha256 is not the signed request half',
-    flags: screened.flags,
-    status: screened.status,
-    providerUrl: tee.providerUrl,
-    model: tee.model,
-  })
+  return c.json(out.body, out.statusCode)
 })
 
 app.post('/invoices/:hash/pay', async (c) => {
@@ -377,6 +353,8 @@ app.post('/invoices/:hash/pay', async (c) => {
   const vs = await vaultState(ws)
   if (amount > BigInt(vs.band0Max)) return c.json({ error: 'over-band0', amount: amount.toString(), band0Max: vs.band0Max }, 400)
   if (!(await vendorAllowed(ws, remittance))) return c.json({ error: 'vendor-not-allowlisted' }, 400)
+  await db.query("UPDATE invoices SET pipeline='paying', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [ws.id, hash])
+  await recordEvent(ws.id, hash, 'paying', { amount: amount.toString(), remittance })
   const result = await sessionPay(ws, {
     vendor: remittance,
     amount,
@@ -387,14 +365,71 @@ app.post('/invoices/:hash/pay', async (c) => {
   })
   if (!result.didMoneyMove) {
     await recordEvent(ws.id, hash, 'pay-failed', result)
+    await db.query("UPDATE invoices SET pipeline='ready', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [ws.id, hash])
     return c.json({ error: 'money-did-not-move', result }, 500)
   }
   await db.query(
-    "UPDATE invoices SET status='paid', pay_tx=$3, pay_session=$4, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2",
+    "UPDATE invoices SET status='paid', pipeline='confirmed', pay_tx=$3, pay_session=$4, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2",
     [ws.id, hash, result.hash, ws.sessionId]
   )
-  await recordEvent(ws.id, hash, 'paid', result)
+  await recordEvent(ws.id, hash, 'confirmed', result)
   return c.json({ ok: true, ...result })
+})
+
+app.post('/queue/pay-allowed', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const db = await getDb()
+  const vs = await vaultState(ws)
+  const session = await sessionState(ws)
+  const remaining = BigInt(session.remaining)
+  const rows = await db.query(
+    `SELECT * FROM invoices WHERE workspace_id = $1 AND status = 'clean' AND pay_tx IS NULL ORDER BY created_at ASC`,
+    [ws.id]
+  )
+  const paid: unknown[] = []
+  const failed: unknown[] = []
+  let left = remaining
+  for (const inv of rows.rows) {
+    const amount = BigInt(String(inv.amount_units || '0'))
+    if (amount > left || amount > BigInt(vs.band0Max)) continue
+    const hash = String(inv.invoice_hash)
+    const flags = typeof inv.flags === 'string' ? JSON.parse(String(inv.flags)) : inv.flags
+    if (Array.isArray(flags) && flags.some((f: { severity: string }) => f.severity === 'block')) {
+      failed.push({ hash, error: 'blocked' })
+      continue
+    }
+    try {
+      await db.query("UPDATE invoices SET pipeline='paying', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [ws.id, hash])
+      const result = await sessionPay(ws, {
+        vendor: String(inv.remittance),
+        amount,
+        invoiceHash: hash,
+        storageRoot: String(inv.storage_root),
+        responseHash: '0x' + String(inv.response_hash).replace(/^0x/, ''),
+        recoveredSigner: String(inv.recovered_signer),
+      })
+      if (!result.didMoneyMove) {
+        failed.push({ hash, error: 'money-did-not-move', result })
+        continue
+      }
+      left -= amount
+      await db.query(
+        "UPDATE invoices SET status='paid', pipeline='confirmed', pay_tx=$3, pay_session=$4, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2",
+        [ws.id, hash, result.hash, ws.sessionId]
+      )
+      await recordEvent(ws.id, hash, 'confirmed', result)
+      paid.push({ hash, ...result })
+    } catch (e) {
+      failed.push({ hash, error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  return c.json({
+    paid,
+    failed,
+    note: 'BursarVault has no batch opcode. Each success is one session.pay then one USDC.e.transfer.',
+  })
 })
 
 app.post('/invoices/:hash/confirm-pay', async (c) => {
@@ -415,6 +450,32 @@ app.post('/invoices/:hash/confirm-pay', async (c) => {
   )
   await recordEvent(ws.id, hash, 'paid', { source: 'confirm-pay', tx: body.tx || null, vendor: payment.vendor })
   return c.json({ ok: true, invoiceHash: hash, vault: ws.vault, paid: true, tx: body.tx || null, vendor: payment.vendor })
+})
+
+app.post('/integrations/telegram', async (c) => {
+  const denied = await requireWorkspace(c)
+  if (denied) return denied
+  const ws = c.get('ws')
+  const body = await c.req.json<{ chatId?: string }>()
+  if (!body.chatId) return c.json({ error: 'chatId required' }, 400)
+  const db = await getDb()
+  await db.query(
+    `INSERT INTO integrations (workspace_id, kind, config) VALUES ($1,'telegram',$2::jsonb)
+     ON CONFLICT (workspace_id, kind) DO UPDATE SET config = $2::jsonb`,
+    [ws.id, JSON.stringify({ chatId: String(body.chatId) })]
+  )
+  return c.json({ ok: true, enabled: Boolean(config.telegramBotToken) })
+})
+
+app.post('/integrations/telegram/webhook', async (c) => {
+  if (!config.telegramBotToken) return c.json({ error: 'telegram disabled' }, 503)
+  if (config.telegramWebhookSecret) {
+    const hdr = c.req.header('x-telegram-bot-api-secret-token')
+    if (hdr !== config.telegramWebhookSecret) return c.json({ error: 'bad webhook secret' }, 401)
+  }
+  const update = await c.req.json()
+  const out = await handleTelegramUpdate(update)
+  return c.json(out)
 })
 
 app.get('/verify/:id', async (c) => {
