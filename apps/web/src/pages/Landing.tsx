@@ -6,14 +6,14 @@ import { useReducedMotion } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
 import { MagneticButton } from '@/components/MagneticButton'
 import { SmoothScroll } from '@/components/SmoothScroll'
-import { HeroDesk } from '@/components/HeroDesk'
+import { OrbitSystem } from '@/components/OrbitSystem'
 import { LIVE } from '@/lib/live'
 import { addrUrl, txUrl } from '@/lib/cn'
 
 gsap.registerPlugin(ScrollTrigger)
 
 const STORY =
-  'It handles invoices and payments without giving an agent unrestricted access to your treasury.'.split(' ')
+  'It handles payables without giving an agent unrestricted access to your treasury.'.split(' ')
 
 export function Landing() {
   const root = useRef<HTMLDivElement>(null)
@@ -23,10 +23,10 @@ export function Landing() {
     if (reduce || !root.current) return
     const ctx = gsap.context(() => {
       gsap.from('.hero-reveal', {
-        y: 28,
+        y: 24,
         opacity: 0,
-        duration: 0.8,
-        stagger: 0.08,
+        duration: 0.85,
+        stagger: 0.07,
         ease: 'power3.out',
       })
       const story = root.current!.querySelector('.story-pin')
@@ -57,48 +57,70 @@ export function Landing() {
   return (
     <SmoothScroll>
       <main ref={root} className="w-full max-w-full overflow-x-hidden bg-[#09090b] text-[#fafafa]">
-        <div className="grain" aria-hidden />
-        <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between px-5 md:px-10">
-          <Link to="/" className="font-display text-lg font-bold tracking-tight text-white">
+        <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-black/10 bg-white px-5 text-[#09090b] md:px-10">
+          <Link to="/" className="font-display text-lg font-bold tracking-tight">
             BURSAR
           </Link>
-          <nav className="hidden items-center gap-8 text-sm text-[#a1a1aa] md:flex">
-            <a href="#work" className="hover:text-white">How it works</a>
-            <a href="#proof" className="hover:text-white">Proof</a>
-            <Link to="/agent" className="hover:text-white">MCP / SDK</Link>
+          <nav className="hidden items-center gap-8 text-sm text-[#52525b] md:flex">
+            <a href="#work" className="hover:text-[#09090b]">How it works</a>
+            <a href="#proof" className="hover:text-[#09090b]">Proof</a>
+            <Link to="/agent" className="hover:text-[#09090b]">MCP / SDK</Link>
           </nav>
           <div className="flex items-center gap-2">
-            <Link to="/start" className="inline-flex h-9 items-center rounded-[4px] bg-white px-3 text-xs font-medium text-[#09090b] md:hidden">
+            <Link to="/start" className="hidden h-9 items-center rounded-[4px] border border-[#09090b]/20 px-3 text-xs font-medium md:inline-flex">
               Get started
             </Link>
-            <Link to="/app" className="hidden h-9 items-center rounded-[4px] border border-white/20 px-3 text-xs font-medium text-white md:inline-flex">
-              Console
+            <Link to="/app" className="inline-flex h-9 items-center rounded-[4px] bg-[#09090b] px-3 text-xs font-medium text-white">
+              Open console
             </Link>
           </div>
         </header>
 
-        <section className="relative flex min-h-[100dvh] flex-col items-center justify-center px-6 pb-16 pt-24 text-center">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(37,99,235,0.18),transparent_58%)]" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto max-w-3xl opacity-40">
-            <HeroDesk mode="idle" />
+        <section className="relative min-h-[100dvh] pt-16 md:grid md:grid-cols-2">
+          <div className="flex flex-col justify-between bg-white px-6 py-16 text-[#09090b] md:px-12 md:py-20">
+            <div>
+              <p className="hero-reveal font-mono text-[10px] uppercase tracking-[0.22em] text-[#71717a]">
+                The vault pays · the agent works
+              </p>
+              <h1 className="hero-reveal font-display mt-6 max-w-xl text-[clamp(2.4rem,4.4vw,4.4rem)] font-bold leading-[0.98] tracking-[-0.05em]">
+                Your finance agent can do the work. Your policy controls the money.
+              </h1>
+              <p className="hero-reveal mt-6 max-w-md text-base leading-relaxed text-[#52525b]">
+                Recurring payables enter BURSAR. Direct TeeML reads them privately. Vendor memory and vault policy decide. Allowed USDC.e moves. Risk is blocked. Proof lives on 0G Aristotle.
+              </p>
+              <div className="hero-reveal mt-8 flex flex-wrap gap-3">
+                <Link to="/start" className="inline-flex h-11 items-center gap-2 rounded-[4px] bg-[#09090b] px-5 text-sm font-medium text-white">
+                  Get started <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link to="/agent" className="inline-flex h-11 items-center rounded-[4px] border border-[#09090b]/20 px-5 text-sm font-medium">
+                  Connect agent
+                </Link>
+              </div>
+            </div>
+            <div className="hero-reveal mt-16 grid gap-6 border-t border-[#09090b]/10 pt-8 font-mono text-[10px] uppercase tracking-[0.16em] sm:grid-cols-3">
+              <div>
+                <div className="text-[#09090b]">Intake from work</div>
+                <div className="mt-2 text-[#71717a]">PDF · API · MCP · Telegram</div>
+              </div>
+              <div>
+                <div className="text-[#09090b]">Remember vendors</div>
+                <div className="mt-2 text-[#71717a]">Recipient · amount · blocks</div>
+              </div>
+              <div>
+                <div className="text-[#09090b]">Prove on 0G</div>
+                <div className="mt-2 text-[#71717a]">Storage · TeeML · ChainScan</div>
+              </div>
+            </div>
           </div>
-          <h1 className="hero-reveal font-display relative z-10 max-w-6xl text-[clamp(2.2rem,4.6vw,4.75rem)] font-bold leading-[1.05] tracking-[-0.045em]">
-            The autonomous finance desk for Web3 teams.
-          </h1>
-          <p className="hero-reveal relative z-10 mt-6 max-w-xl text-base leading-relaxed text-[#a1a1aa]">
-            Your agent handles the finance work. Your policy controls the money.
-          </p>
-          <div className="hero-reveal relative z-10 mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/start" className="inline-flex h-11 items-center gap-2 rounded-[4px] bg-white px-5 text-sm font-medium text-[#09090b]">
-              Get started <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link to="/agent" className="inline-flex h-11 items-center rounded-[4px] border border-white/20 px-5 text-sm font-medium">
-              Connect agent
-            </Link>
+          <div className="relative min-h-[70vh] overflow-hidden bg-[#09090b] md:min-h-[100dvh]">
+            <p className="absolute left-6 top-6 z-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[#a1a1aa]">
+              Certified on Aristotle 16661
+            </p>
+            <OrbitSystem />
           </div>
         </section>
 
-        <section className="story-pin flex min-h-[100dvh] items-center px-6 md:px-12">
+        <section className="story-pin flex min-h-[100dvh] items-center bg-[#09090b] px-6 md:px-12">
           <h2 className="font-display mx-auto max-w-5xl text-4xl font-bold tracking-tight md:text-6xl">
             {STORY.map((w, i) => (
               <span key={i} className="word mr-[0.28em] inline-block">{w}</span>
@@ -106,20 +128,13 @@ export function Landing() {
           </h2>
         </section>
 
-        <section className="px-6 py-32 md:px-12 md:py-48">
-          <div className="mx-auto grid max-w-6xl grid-flow-dense grid-cols-1 gap-3 md:grid-cols-6 md:grid-rows-2">
-            <article className="group overflow-hidden rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-4 md:row-span-2">
-              <h3 className="font-display text-3xl font-bold tracking-tight">Inbox to payment</h3>
+        <section className="bg-[#09090b] px-6 py-32 md:px-12 md:py-48">
+          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 md:grid-cols-6 md:grid-rows-2">
+            <article className="rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-4 md:row-span-2">
+              <h3 className="font-display text-3xl font-bold tracking-tight">The object is a payable</h3>
               <p className="mt-4 max-w-md text-[#a1a1aa]">
-                Submit a PDF. BURSAR extracts, screens, and either pays, asks you, or blocks. The main action is always one of those four.
+                Not a PDF app. A payable can be an invoice, a contractor request, a renewal, or an agent expense. Every one hits the same engine: identity, extraction, vendor memory, policy, pay or block, proof.
               </p>
-              <div className="mt-10 overflow-hidden rounded-[4px]">
-                <img
-                  src="https://picsum.photos/seed/bursar-ledger-ops/1600/900"
-                  alt="Operations desk"
-                  className="h-64 w-full object-cover grayscale contrast-125 opacity-90 transition-transform duration-700 ease-out group-hover:scale-105 md:h-80"
-                />
-              </div>
             </article>
             <article className="rounded-[4px] border border-white/10 p-8 md:col-span-2">
               <h3 className="font-display text-xl font-bold">Owner wallet</h3>
@@ -132,15 +147,15 @@ export function Landing() {
           </div>
         </section>
 
-        <section id="work" className="flow-pin flex min-h-[100dvh] flex-col justify-center px-6 md:px-12">
+        <section id="work" className="flow-pin flex min-h-[100dvh] flex-col justify-center bg-[#09090b] px-6 md:px-12">
           <div className="mx-auto w-full max-w-6xl">
             <h2 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
-              Invoice. Private AI. Policy. Vault. USDC.e. Proof.
+              Payable. Private AI. Vendor memory. Policy. Vault. USDC.e. Proof.
             </h2>
             <div className="mt-12 flex gap-2 overflow-x-auto md:grid md:grid-cols-6 md:gap-3 md:overflow-visible">
               {[
-                { t: 'Invoice', d: 'PDF hash registered to your vault only.' },
-                { t: 'Direct TeeML', d: 'Vision model 0gm-1.0-35b-a3b. Signed response recovered.' },
+                { t: 'Intake', d: 'PDF, API, MCP, or Telegram. Same Payable engine.' },
+                { t: 'Direct TeeML', d: 'Vision 0gm-1.0-35b-a3b. Signed response recovered.' },
                 { t: '0G Storage', d: 'Encrypted upload. Go client proves the download.' },
                 { t: 'Policy', d: 'Vendor, band, session cap, pause, expiry, revoke.' },
                 { t: 'USDC.e', d: 'BursarVault.transfer. Not Payment Layer. Not 0G Pay.' },
@@ -158,7 +173,7 @@ export function Landing() {
           </div>
         </section>
 
-        <section id="proof" className="px-6 py-32 md:px-12 md:py-48">
+        <section id="proof" className="bg-[#09090b] px-6 py-32 md:px-12 md:py-48">
           <div className="mx-auto max-w-6xl">
             <h2 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">Open the chain. Do not trust a screenshot.</h2>
             <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
@@ -180,11 +195,11 @@ export function Landing() {
           </div>
         </section>
 
-        <section className="px-6 py-24 md:px-12 md:py-32">
+        <section className="bg-[#09090b] px-6 py-24 md:px-12 md:py-32">
           <div className="mx-auto max-w-5xl rounded-[4px] border border-white/10 bg-[#111113] px-8 py-16 md:px-16">
             <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">Create your workspace.</h2>
             <p className="mt-4 max-w-md text-[#a1a1aa]">
-              Connect the owner wallet. Deploy a vault. Authorize a scoped agent. Submit the first invoice.
+              Connect the owner wallet. Deploy a vault. Authorize a scoped agent. Connect an intake channel. Receive a payable.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <MagneticButton href="/app" variant="ghost">
@@ -197,7 +212,7 @@ export function Landing() {
           </div>
         </section>
 
-        <footer className="flex flex-col gap-3 border-t border-white/10 px-6 py-10 text-sm text-[#a1a1aa] md:flex-row md:items-center md:justify-between md:px-12">
+        <footer className="flex flex-col gap-3 border-t border-white/10 bg-[#09090b] px-6 py-10 text-sm text-[#a1a1aa] md:flex-row md:items-center md:justify-between md:px-12">
           <span className="font-display font-bold text-white">BURSAR</span>
           <span>Autonomous finance desk. The vault is the final authority.</span>
         </footer>
