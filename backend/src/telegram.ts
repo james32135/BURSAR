@@ -5,6 +5,8 @@ import { payablePdf } from './artifact.ts'
 import { acceptPayable } from './ingest.ts'
 import { executeAllowedPay } from './pay.ts'
 import { getWorkspaceById } from './workspace.ts'
+import { detectUnsupportedRail } from './rails.ts'
+import { vendorMemoryFor } from './payable.ts'
 
 const CONSOLE = 'https://bursarx.vercel.app'
 const CODE_TTL_MS = 15 * 60 * 1000
@@ -81,15 +83,22 @@ async function answerCb(id: string, text?: string) {
 }
 
 function parseRequest(text: string) {
+  if (detectUnsupportedRail({ text })) {
+    return { unsupported: true as const }
+  }
   const rem = text.match(/0x[a-fA-F0-9]{40}/)
-  const amt = text.match(/([\d,]+\.?\d*)\s*(USDC\.e|USD|usdc)?/i)
+  if (!rem) return null
+  const pay = text.match(/pay\s+(.+?)\s+\$?([\d,]+\.?\d*)\s*(?:USDC\.e|USDC|USD)?/i)
+  const amt = pay?.[2] || text.match(/([\d,]+\.?\d*)\s*(?:USDC\.e|USDC|USD)/i)?.[1] || text.match(/\$\s*([\d,]+\.?\d*)/i)?.[1]
   const vendorMatch = text.match(/from\s+([^:\n]+)/i) || text.match(/vendor[:\s]+([^,\n]+)/i)
-  if (!rem || !amt) return null
+  if (!amt) return null
+  const kind = /month|recurring|subscription|retain|api bill/i.test(text) ? 'recurring' : 'request'
   return {
     remittance: rem[0],
-    amountUsd: amt[1].replace(/,/g, ''),
-    vendor: (vendorMatch?.[1] || 'Telegram vendor').trim(),
+    amountUsd: amt.replace(/,/g, ''),
+    vendor: (pay?.[1] || vendorMatch?.[1] || 'Telegram vendor').replace(/\s+to$/i, '').trim(),
     invoiceNumber: `TG-${Date.now()}`,
+    kind,
   }
 }
 
@@ -396,12 +405,18 @@ async function help(chatId: number) {
   await send(
     chatId,
     [
-      'BURSAR Telegram is a first-class operations channel, not a command list.',
+      'BURSAR Telegram is the mobile control surface of the finance inbox.',
       'Taps: PAY, VIEW, IGNORE, APPROVE IN APP.',
       '/start CODE — bind with a one-time Settings code',
-      '/attention — what needs you',
+      '/workspace — which vault this chat is bound to',
+      '/attention or /inbox — what needs you',
+      '/review — exceptions',
       '/payments — recent paid hashes',
+      '/vendors — vendor memory',
+      '/policy — bands, pause, session remaining (read only)',
+      '/help — this list',
       'To submit a payable, send vendor, amount, and a 0x remittance on 0G Aristotle USDC.e.',
+      'Bank wire, ACH, SEPA, BTC, and ETH are unsupported payment rails. 0 USDC.e moved.',
       'PAY in this chat only runs Band-0 session pay. Owner approve / withdraw / policy stay on bursarx.vercel.app.',
     ].join('\n')
   )
@@ -539,6 +554,26 @@ export async function handleTelegramUpdate(update: TgUpdate, opts?: { alreadyDed
     void send(chatId, `Workspace ${bound.ws.id}\nVault ${bound.ws.vault}\nOwner ${bound.ws.owner}\nDEMO=${bound.ws.demo}`)
     return { ok: true }
   }
+  if (c === '/policy') {
+    void (async () => {
+      const { vaultState, sessionState } = await import('./vault.ts')
+      const vs = await vaultState(bound.ws)
+      const session = await sessionState(bound.ws)
+      await send(
+        chatId,
+        [
+          vs.paused ? 'PAUSED' : 'OPEN',
+          `Band 0 ${usd(vs.band0Max)}`,
+          `Session remaining ${usd(session.remaining)}`,
+          session.revoked ? 'Session revoked' : 'Session live',
+          'This chat cannot pause, withdraw, or change bands.',
+        ].join('\n')
+      )
+    })().catch(async (e) => {
+      await send(chatId, `Policy read failed. ${e instanceof Error ? e.message.slice(0, 180) : 'retry'}`)
+    })
+    return { ok: true }
+  }
   if (c === '/attention' || c === '/inbox') {
     void showAttention(chatId, bound.ws.id).catch(async (e) => {
       await send(chatId, `Attention failed. ${e instanceof Error ? e.message.slice(0, 180) : 'retry'}`)
@@ -582,21 +617,32 @@ export async function handleTelegramUpdate(update: TgUpdate, opts?: { alreadyDed
     return { ok: true }
   }
   if (c === '/vendors') {
-    const db2 = await getDb()
-    const q = await db2.query(
-      `SELECT remittance, vendor, COUNT(*)::int AS n FROM invoices
-       WHERE workspace_id = $1 AND remittance IS NOT NULL GROUP BY remittance, vendor ORDER BY n DESC LIMIT 8`,
-      [bound.ws.id]
-    )
-    if (!q.rows.length) {
+    const vendors = await vendorMemoryFor(bound.ws.id)
+    if (!vendors.length) {
       await send(chatId, 'No vendor memory yet.')
       return { ok: true }
     }
-    await send(chatId, q.rows.map((r) => `${r.vendor || '-'} ${r.remittance} n=${r.n}`).join('\n'))
+    await send(
+      chatId,
+      vendors
+        .slice(0, 8)
+        .map((v) => {
+          const trust = v.trusted ? 'TRUSTED' : v.recipientChanged ? 'RECIPIENT CHANGED' : 'WATCH'
+          return `${v.name}\n${trust} ${v.remittance}\npaid ${v.paymentCount} typical ${usd(v.typicalAmount)} last ${usd(v.lastAmount)}`
+        })
+        .join('\n\n')
+    )
     return { ok: true }
   }
 
   const parsed = parseRequest(text)
+  if (parsed && 'unsupported' in parsed) {
+    await send(
+      chatId,
+      'UNSUPPORTED PAYMENT RAIL\nBURSAR settles USDC.e on 0G Aristotle 16661 only.\n0 USDC.e moved.'
+    )
+    return { ok: true }
+  }
   if (!parsed) {
     await send(
       chatId,
@@ -610,10 +656,11 @@ export async function handleTelegramUpdate(update: TgUpdate, opts?: { alreadyDed
     remittance: parsed.remittance,
     amountUsd: parsed.amountUsd,
     invoiceNumber: parsed.invoiceNumber,
-    kind: 'telegram-request',
+    kind: parsed.kind,
+    rail: 'usdc.e-16661',
   })
   try {
-    const out = await acceptPayable({ ws: bound.ws, pdf, source: 'telegram', kind: 'request', analyze: true })
+    const out = await acceptPayable({ ws: bound.ws, pdf, source: 'telegram', kind: parsed.kind, analyze: true })
     const body = out.body as { invoiceHash?: string; duplicate?: boolean }
     await logAction(bound.ws.id, telegramUserId, 'submit', { invoiceHash: body.invoiceHash, duplicate: body.duplicate })
     if (out.statusCode === 409) {
