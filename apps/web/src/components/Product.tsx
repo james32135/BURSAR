@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/cn'
 
 const STEPS = [
+  { to: '/app', label: 'Attention' },
   { to: '/app/inbox', label: 'Inbox' },
   { to: '/app/review', label: 'Review' },
   { to: '/app/policies', label: 'Policy' },
@@ -14,7 +15,7 @@ export function WorkflowRail() {
   return (
     <ol className="flex flex-wrap items-center gap-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--fg-muted)]">
       {STEPS.map((s, i) => {
-        const on = loc.pathname.startsWith(s.to)
+        const on = s.to === '/app' ? loc.pathname === '/app' : loc.pathname.startsWith(s.to)
         return (
           <li key={s.to} className="flex items-center gap-1">
             {i > 0 && <span className="px-1 text-[var(--fg-muted)]/50" aria-hidden>→</span>}

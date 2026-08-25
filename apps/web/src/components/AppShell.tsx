@@ -9,7 +9,7 @@ import { WorkflowRail } from '@/components/Product'
 import { isDemoMode, loadWorkspace } from '@/lib/workspace'
 
 const NAV = [
-  { to: '/app', end: true, label: 'Workspace' },
+  { to: '/app', end: true, label: 'Attention' },
   { to: '/app/inbox', label: 'Inbox' },
   { to: '/app/review', label: 'Review' },
   { to: '/app/payments', label: 'Payments' },

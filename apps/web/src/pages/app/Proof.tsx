@@ -21,7 +21,7 @@ export function Proof() {
     <div>
       <PageHeader
         title="Verify from chain."
-        body="Not a screenshot. /verify reconstructs Paid + USDC.e Transfer + Go merkle proof from the paying vault."
+        body="Not a screenshot. /verify reconstructs Paid + USDC.e Transfer + Go merkle proof from the paying vault. The recovered AI signer is processResponse EIP-191 recovery — not a hardware TEE quote."
       />
       <form
         className="mt-6 flex flex-wrap gap-2"
@@ -69,7 +69,8 @@ export function Proof() {
               <dt className="text-[var(--fg-muted)]">Vendor</dt><dd className="break-all font-mono text-xs">{v.vendor}</dd>
               <dt className="text-[var(--fg-muted)]">Invoice</dt><dd className="break-all font-mono text-xs">{v.invoiceHash}</dd>
               <dt className="text-[var(--fg-muted)]">Storage</dt><dd className="break-all font-mono text-xs">{v.storageRoot}</dd>
-              <dt className="text-[var(--fg-muted)]">Signer</dt><dd className="break-all font-mono text-xs">{v.recoveredSigner}</dd>
+              <dt className="text-[var(--fg-muted)]">processResponse</dt><dd className="break-all font-mono text-xs">{v.recoveredSigner || '-'}</dd>
+              <dt className="text-[var(--fg-muted)]">Hardware TEE quote</dt><dd>Not verified on this payment path</dd>
               <dt className="text-[var(--fg-muted)]">Go proof</dt><dd>{v.goProof?.ok ? 'Succeeded to validate the downloaded file' : 'failed or missing'}</dd>
             </dl>
             {(v.explorer || v.txHash) && (
