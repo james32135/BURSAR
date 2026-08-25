@@ -35,9 +35,13 @@ const TOOLS = [
   { name: 'submit_invoice', description: 'Upload invoice PDF from a local path. Direct TeeML binding.' },
   { name: 'submit_payable', description: 'Create a payable from vendor, remittance, and amount. Same engine as PDF.' },
   { name: 'inspect_invoice', description: 'Fetch payable metadata by sha256 hash.' },
+  { name: 'inspect_payable', description: 'Alias of inspect_invoice. Same payable object.' },
   { name: 'get_queue', description: 'List payables in this workspace only.' },
-  { name: 'attention', description: 'What needs attention: auto-pay, owner review, blocked.' },
+  { name: 'attention', description: 'What needs attention: auto-pay, owner review, blocked, paid recently.' },
   { name: 'vendor_memory', description: 'Persisted vendor history for this workspace.' },
+  { name: 'vendors', description: 'Alias of vendor_memory.' },
+  { name: 'payments', description: 'Paid payables in this workspace.' },
+  { name: 'policy', description: 'Read vault bands, pause, session remaining. Cannot change policy.' },
   { name: 'get_payment_queue', description: 'Alias of get_queue.' },
   { name: 'explain_flags', description: 'Explain screening flags.' },
   { name: 'explain_decision', description: 'Why auto-pay, owner-review, or blocked.' },
@@ -49,7 +53,18 @@ const TOOLS = [
   { name: 'get_proof', description: 'Stored proof fields for a payable.' },
   { name: 'verify_payment', description: 'Chain-derived verification of pay tx or invoice hash.' },
 ]
-const FORBIDDEN = new Set(['setVendor', 'withdraw', 'setPaused', 'setBands', 'createSession', 'transferOwnership', 'ownerPay'])
+const FORBIDDEN = new Set([
+  'setVendor',
+  'withdraw',
+  'setPaused',
+  'setBands',
+  'createSession',
+  'transferOwnership',
+  'ownerPay',
+  'pause',
+  'revoke',
+  'addVendor',
+])
 
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + '\n')
@@ -59,9 +74,14 @@ async function callTool(name, args) {
   if (FORBIDDEN.has(name)) return { error: 'forbidden' }
   if (name === 'get_payment_queue' || name === 'get_queue') return api('/queue')
   if (name === 'attention') return api('/attention')
-  if (name === 'vendor_memory') return api('/vendors/memory')
+  if (name === 'vendor_memory' || name === 'vendors') return api('/vendors/memory')
+  if (name === 'policy') return api('/policy')
+  if (name === 'payments') {
+    const q = await api('/queue')
+    return { payments: (q.invoices || []).filter((i) => i.pay_tx || i.status === 'paid') }
+  }
   if (name === 'pay_allowed_sequential') return api('/queue/pay-allowed', { method: 'POST' })
-  if (name === 'inspect_invoice' || name === 'get_proof' || name === 'get_payment_status' || name === 'explain_decision') {
+  if (name === 'inspect_invoice' || name === 'inspect_payable' || name === 'get_proof' || name === 'get_payment_status' || name === 'explain_decision') {
     const inv = await api('/invoices/' + args.hash)
     if (name === 'get_payment_status') {
       return { hash: args.hash, status: inv.status, pay_tx: inv.pay_tx, amount_units: inv.amount_units, remittance: inv.remittance }
@@ -107,6 +127,8 @@ async function callTool(name, args) {
         memo: args.memo,
         kind: args.kind || 'request',
         source: 'mcp',
+        rail: args.rail,
+        cadence: args.cadence,
       }),
     })
   }

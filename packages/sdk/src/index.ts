@@ -49,8 +49,45 @@ export class BursarClient {
     form.set('file', new Blob([pdf]), 'invoice.pdf')
     return this.req('/invoices?analyze=' + (analyze ? '1' : '0'), { method: 'POST', body: form })
   }
-  submitPayable(body: { vendor: string; remittance: string; amountUsd: string; invoiceNumber?: string; memo?: string; kind?: string }) {
+  submitPayable(body: {
+    vendor: string
+    remittance: string
+    amountUsd: string
+    invoiceNumber?: string
+    memo?: string
+    kind?: string
+    rail?: string
+    cadence?: string
+  }) {
     return this.req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  }
+  createPayable(body: Parameters<BursarClient['submitPayable']>[0]) {
+    return this.submitPayable(body)
+  }
+  getPayable(hash: string) {
+    return this.getInvoice(hash)
+  }
+  review() {
+    return this.attention().then((a: { payables?: Array<{ status?: string; decision?: string }> }) => ({
+      payables: (a.payables || []).filter((p) => p.status === 'flagged' || p.decision === 'owner-review' || p.status === 'blocked'),
+    }))
+  }
+  explainDecision(hash: string) {
+    return this.getInvoice(hash).then((inv: { status?: string; decision?: string; why?: string[]; flags?: unknown }) => ({
+      hash,
+      status: inv.status,
+      decision: inv.decision,
+      why: inv.why,
+      flags: inv.flags,
+    }))
+  }
+  payments() {
+    return this.queue().then((q: { invoices?: Array<{ pay_tx?: string; status?: string }> }) => ({
+      payments: (q.invoices || []).filter((i) => i.pay_tx || i.status === 'paid'),
+    }))
+  }
+  vendors() {
+    return this.vendorMemory()
   }
   attention() {
     return this.req('/attention')
@@ -81,5 +118,8 @@ export class BursarClient {
   }
   verify(id: string) {
     return fetch(this.opts.baseUrl.replace(/\/$/, '') + '/verify/' + id).then((r) => r.json())
+  }
+  verifyPayment(id: string) {
+    return this.verify(id)
   }
 }

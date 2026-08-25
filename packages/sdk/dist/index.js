@@ -51,6 +51,34 @@ export class BursarClient {
     submitPayable(body) {
         return this.req('/payables', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     }
+    createPayable(body) {
+        return this.submitPayable(body);
+    }
+    getPayable(hash) {
+        return this.getInvoice(hash);
+    }
+    review() {
+        return this.attention().then((a) => ({
+            payables: (a.payables || []).filter((p) => p.status === 'flagged' || p.decision === 'owner-review' || p.status === 'blocked'),
+        }));
+    }
+    explainDecision(hash) {
+        return this.getInvoice(hash).then((inv) => ({
+            hash,
+            status: inv.status,
+            decision: inv.decision,
+            why: inv.why,
+            flags: inv.flags,
+        }));
+    }
+    payments() {
+        return this.queue().then((q) => ({
+            payments: (q.invoices || []).filter((i) => i.pay_tx || i.status === 'paid'),
+        }));
+    }
+    vendors() {
+        return this.vendorMemory();
+    }
     attention() {
         return this.req('/attention');
     }
@@ -81,5 +109,8 @@ export class BursarClient {
     }
     verify(id) {
         return fetch(this.opts.baseUrl.replace(/\/$/, '') + '/verify/' + id).then((r) => r.json());
+    }
+    verifyPayment(id) {
+        return this.verify(id);
     }
 }
