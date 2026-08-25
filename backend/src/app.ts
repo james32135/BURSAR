@@ -102,6 +102,16 @@ app.get('/health', async (c) => {
     demoLabeled: true,
     privacy:
       'Sensitive invoice processing uses the Direct TeeML path. processResponse is EIP-191 recovery of the registered TEE signer, not a hardware quote. Direct TLS is public Let\'s Encrypt, not RA-TLS. Independent dstack quote verification is a separate manual path and is not on the payment hot path.',
+    integrations: {
+      pdf: true,
+      api: true,
+      mcp: true,
+      sdk: true,
+      telegram: Boolean(config.telegramBotToken),
+      email: false,
+      slack: false,
+      discord: false,
+    },
   })
 })
 
@@ -164,6 +174,16 @@ app.get('/product', async (c) => {
     ],
     privacy:
       'Sensitive invoice processing uses the Direct TeeML path. We do not claim that 0G cannot see your data. The signed request half is the broker\'s rewritten body, not sha256 of the original client POST. Hardware TEE quotes are not verified on the payment path.',
+    integrations: {
+      pdf: true,
+      api: true,
+      mcp: true,
+      sdk: true,
+      telegram: Boolean(config.telegramBotToken),
+      email: false,
+      slack: false,
+      discord: false,
+    },
   })
 })
 
@@ -420,7 +440,7 @@ app.post('/queue/pay-allowed', async (c) => {
         [ws.id, hash, result.hash, ws.sessionId]
       )
       await recordEvent(ws.id, hash, 'confirmed', result)
-      paid.push({ hash, ...result })
+      paid.push({ invoiceHash: hash, tx: result.hash, explorer: result.explorer, didMoneyMove: result.didMoneyMove })
     } catch (e) {
       failed.push({ hash, error: e instanceof Error ? e.message : String(e) })
     }
