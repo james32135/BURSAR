@@ -89,14 +89,31 @@ function assertFreshTimestamp(issuedAt: number) {
 export async function resumeWorkspace(args: { signature: string; issuedAt: number }) {
   assertFreshTimestamp(args.issuedAt)
   const message = resumeMessage(config.chainId, args.issuedAt)
-  const recovered = ethers.verifyMessage(message, args.signature)
+  const recovered = ethers.verifyMessage(message, args.signature).toLowerCase()
   const db = await getDb()
-  const found = await db.query(
-    `SELECT * FROM workspaces WHERE owner = $1 AND demo = FALSE ORDER BY created_at DESC LIMIT 1`,
-    [recovered.toLowerCase()]
+  const demoVault = config.vault.toLowerCase()
+  let found = await db.query(
+    `SELECT * FROM workspaces
+     WHERE lower(owner) = $1 AND lower(vault) <> $2
+     ORDER BY created_at DESC LIMIT 1`,
+    [recovered, demoVault]
   )
+  if (!found.rows[0] && config.factory) {
+    const rpc = new ethers.JsonRpcProvider(config.rpcUrl)
+    const factory = new ethers.Contract(config.factory, FACTORY_ABI, rpc)
+    const vaults = (await factory.vaultsOf(recovered)) as string[]
+    const addrs = vaults.map((v) => String(v).toLowerCase()).filter((v) => v !== demoVault)
+    if (addrs.length) {
+      found = await db.query(
+        `SELECT * FROM workspaces WHERE vault = ANY($1::text[]) ORDER BY created_at DESC LIMIT 1`,
+        [addrs]
+      )
+    }
+  }
   const row = found.rows[0]
-  if (!row) throw new Error('no isolated workspace for this owner')
+  if (!row) {
+    throw new Error('no isolated workspace for this owner — bind the factory vault instead of creating another')
+  }
   const agentToken = ethers.hexlify(randomBytes(32))
   await db.query(`UPDATE workspaces SET token_hash = $1 WHERE id = $2`, [sha256Hex(agentToken), row.id])
   const ws = rowToWorkspace(row, decryptSecret(String(row.agent_pk_enc)))
