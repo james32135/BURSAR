@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { EXPECTED_TEE_SIGNER, payGateReason } from '../src/pay.ts'
+import { EXPECTED_TEE_SIGNER, payGateReason, payRevertReason } from '../src/pay.ts'
 
 const base = {
   status: 'clean',
@@ -50,4 +50,12 @@ test('pay gate rejects invalid TeeML signer and in-flight pay', () => {
   assert.equal(payGateReason({ ...base, recoveredSigner: '0x' + '11'.repeat(20) })?.error, 'invalid-signer')
   assert.equal(payGateReason({ ...base, attestationOk: false })?.error, 'attestation missing')
   assert.equal(payGateReason({ ...base, pipeline: 'paying' })?.error, 'pay-in-flight')
+})
+
+test('on-chain TransferFailed maps to insufficient-vault-balance, not a raw ethers dump', () => {
+  const raw =
+    'execution reverted (unknown custom error) (action="estimateGas", data="0x90b8ec18", reason=null, transaction={ "data": "0x15af0caa" }, code=CALL_EXCEPTION, version=6.13.1)'
+  assert.equal(payRevertReason(raw), 'insufficient-vault-balance')
+  assert.equal(payRevertReason('execution reverted (unknown custom error) (action="estimateGas", data="0xf0d97246"'), 'paused')
+  assert.equal(payRevertReason('something else\nmore'), 'something else')
 })

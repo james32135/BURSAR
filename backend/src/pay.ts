@@ -4,6 +4,20 @@ import type { Workspace } from './workspace.ts'
 
 export const EXPECTED_TEE_SIGNER = '0x8561E0a9dA3C8d6591A2E756a91334f1a3E537e0'
 
+/** Map on-chain custom errors to the same fail-closed strings the HTTP gate uses. */
+export function payRevertReason(message: string): string {
+  const selector = message.match(/data="(0x[0-9a-f]{8})/i)?.[1]?.toLowerCase()
+  if (selector === '0x90b8ec18') return 'insufficient-vault-balance'
+  if (selector === '0xf0d97246') return 'paused'
+  if (selector === '0x44825a4b') return 'session-revoked'
+  if (selector === '0x203d82d8') return 'session-expired'
+  if (selector === '0xd2bcc8de') return 'over-band0'
+  if (selector === '0x342fa66d') return 'over-session-cap'
+  if (selector === '0x01434545') return 'vendor-not-allowlisted'
+  if (selector === '0x3c002dc1') return 'already paid'
+  return message.split('\n')[0].slice(0, 180)
+}
+
 export type PayResult =
   | { ok: true; hash: string; explorer: string; preVault: string; postVault: string; preVendor: string; postVendor: string; moneyMoved: string }
   | { ok: false; error: string; status?: number; flags?: unknown; result?: unknown }
@@ -86,14 +100,25 @@ export async function executeAllowedPay(ws: Workspace, hash: string): Promise<Pa
     hash,
   ])
   await recordEvent(ws.id, hash, 'paying', { amount: amount.toString(), remittance })
-  const result = await sessionPay(ws, {
-    vendor: remittance,
-    amount,
-    invoiceHash: hash,
-    storageRoot: String(inv.storage_root),
-    responseHash: '0x' + String(inv.response_hash).replace(/^0x/, ''),
-    recoveredSigner: String(inv.recovered_signer),
-  })
+  let result: Awaited<ReturnType<typeof sessionPay>>
+  try {
+    result = await sessionPay(ws, {
+      vendor: remittance,
+      amount,
+      invoiceHash: hash,
+      storageRoot: String(inv.storage_root),
+      responseHash: '0x' + String(inv.response_hash).replace(/^0x/, ''),
+      recoveredSigner: String(inv.recovered_signer),
+    })
+  } catch (e) {
+    const error = payRevertReason(e instanceof Error ? e.message : String(e))
+    await recordEvent(ws.id, hash, 'pay-failed', { error })
+    await db.query("UPDATE invoices SET pipeline='ready', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [
+      ws.id,
+      hash,
+    ])
+    return { ok: false, error, status: 400 }
+  }
   if (!result.didMoneyMove) {
     await recordEvent(ws.id, hash, 'pay-failed', result)
     await db.query("UPDATE invoices SET pipeline='ready', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [

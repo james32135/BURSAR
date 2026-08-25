@@ -16,7 +16,6 @@ import {
   agentForbiddenCalls,
   onchainInvoice,
   onchainPayment,
-  sessionPay,
   sessionState,
   vaultState,
   vendorAllowed,
@@ -466,48 +465,19 @@ app.post('/queue/pay-allowed', async (c) => {
   if (denied) return denied
   const ws = c.get('ws')
   const db = await getDb()
-  const vs = await vaultState(ws)
-  const session = await sessionState(ws)
-  const remaining = BigInt(session.remaining)
   const rows = await db.query(
     `SELECT * FROM invoices WHERE workspace_id = $1 AND status = 'clean' AND pay_tx IS NULL ORDER BY created_at ASC`,
     [ws.id]
   )
   const paid: unknown[] = []
   const failed: unknown[] = []
-  let left = remaining
   for (const inv of rows.rows) {
-    const amount = BigInt(String(inv.amount_units || '0'))
-    if (amount > left || amount > BigInt(vs.band0Max)) continue
     const hash = String(inv.invoice_hash)
-    const flags = typeof inv.flags === 'string' ? JSON.parse(String(inv.flags)) : inv.flags
-    if (Array.isArray(flags) && flags.some((f: { severity: string }) => f.severity === 'block')) {
-      failed.push({ hash, error: 'blocked' })
-      continue
-    }
-    try {
-      await db.query("UPDATE invoices SET pipeline='paying', updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2", [ws.id, hash])
-      const result = await sessionPay(ws, {
-        vendor: String(inv.remittance),
-        amount,
-        invoiceHash: hash,
-        storageRoot: String(inv.storage_root),
-        responseHash: '0x' + String(inv.response_hash).replace(/^0x/, ''),
-        recoveredSigner: String(inv.recovered_signer),
-      })
-      if (!result.didMoneyMove) {
-        failed.push({ hash, error: 'money-did-not-move', result })
-        continue
-      }
-      left -= amount
-      await db.query(
-        "UPDATE invoices SET status='paid', pipeline='confirmed', pay_tx=$3, pay_session=$4, updated_at=NOW() WHERE workspace_id=$1 AND invoice_hash=$2",
-        [ws.id, hash, result.hash, ws.sessionId]
-      )
-      await recordEvent(ws.id, hash, 'confirmed', result)
-      paid.push({ invoiceHash: hash, tx: result.hash, explorer: result.explorer, didMoneyMove: result.didMoneyMove })
-    } catch (e) {
-      failed.push({ hash, error: e instanceof Error ? e.message : String(e) })
+    const result = await executeAllowedPay(ws, hash)
+    if (result.ok) {
+      paid.push({ invoiceHash: hash, tx: result.hash, explorer: result.explorer, didMoneyMove: true, moneyMoved: result.moneyMoved })
+    } else {
+      failed.push({ hash, error: result.error })
     }
   }
   return c.json({
