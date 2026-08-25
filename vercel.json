@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "if [ -d apps/web ]; then cd apps/web && npm ci; else npm ci; fi",
-  "buildCommand": "if [ -d apps/web ]; then cd apps/web && npm run build && cd .. && rm -rf dist && mkdir -p dist && cp -R apps/web/dist/. dist/; else npm run build; fi",
-  "outputDirectory": "dist",
+  "installCommand": "npm install --prefix apps/web",
+  "buildCommand": "npm run build --prefix apps/web",
+  "outputDirectory": "apps/web/dist",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
