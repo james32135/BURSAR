@@ -76,11 +76,39 @@ export function bindMessage(chainId: number, vault: string, issuedAt: number) {
   return `BURSAR bind\nchain ${chainId}\nvault ${vault.toLowerCase()}\ntime ${issuedAt}`
 }
 
-export async function bindWorkspace(args: { vault: string; signature: string; issuedAt: number }) {
-  const vaultAddr = ethers.getAddress(args.vault)
-  if (Date.now() / 1000 - args.issuedAt > 600 || args.issuedAt > Date.now() / 1000 + 60) {
+export function resumeMessage(chainId: number, issuedAt: number) {
+  return `BURSAR resume\nchain ${chainId}\ntime ${issuedAt}`
+}
+
+function assertFreshTimestamp(issuedAt: number) {
+  if (Date.now() / 1000 - issuedAt > 600 || issuedAt > Date.now() / 1000 + 60) {
     throw new Error('bind signature expired')
   }
+}
+
+export async function resumeWorkspace(args: { signature: string; issuedAt: number }) {
+  assertFreshTimestamp(args.issuedAt)
+  const message = resumeMessage(config.chainId, args.issuedAt)
+  const recovered = ethers.verifyMessage(message, args.signature)
+  const db = await getDb()
+  const found = await db.query(
+    `SELECT * FROM workspaces WHERE owner = $1 AND demo = FALSE ORDER BY created_at DESC LIMIT 1`,
+    [recovered.toLowerCase()]
+  )
+  const row = found.rows[0]
+  if (!row) throw new Error('no isolated workspace for this owner')
+  const agentToken = ethers.hexlify(randomBytes(32))
+  await db.query(`UPDATE workspaces SET token_hash = $1 WHERE id = $2`, [sha256Hex(agentToken), row.id])
+  const ws = rowToWorkspace(row, decryptSecret(String(row.agent_pk_enc)))
+  return {
+    ...publicWorkspace(ws, agentToken),
+    next: ['open-desk'],
+  }
+}
+
+export async function bindWorkspace(args: { vault: string; signature: string; issuedAt: number }) {
+  const vaultAddr = ethers.getAddress(args.vault)
+  assertFreshTimestamp(args.issuedAt)
   const message = bindMessage(config.chainId, vaultAddr, args.issuedAt)
   const recovered = ethers.verifyMessage(message, args.signature)
   const rpc = new ethers.JsonRpcProvider(config.rpcUrl)
@@ -104,7 +132,7 @@ export async function bindWorkspace(args: { vault: string; signature: string; is
   const db = await getDb()
   const already = await db.query('SELECT id FROM workspaces WHERE vault = $1', [vaultAddr.toLowerCase()])
   if (already.rows[0]) {
-    throw new Error('vault already bound')
+    throw new Error('vault already bound — resume this desk instead of creating another vault')
   }
 
   const agent = ethers.Wallet.createRandom()
