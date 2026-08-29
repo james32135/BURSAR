@@ -46,6 +46,7 @@ export const config = {
   storageScan: process.env.BURSAR_STORAGESCAN_URL || 'https://storagescan.0g.ai',
   vault: req('BURSAR_VAULT'),
   factory: process.env.BURSAR_FACTORY || '',
+  agentId: process.env.BURSAR_AGENT_ID || '',
   usdc: process.env.USDC_E_ADDRESS || '0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E',
   owner: req('BURSAR_OWNER_ADDRESS'),
   sessionPk: req('BURSAR_SESSION_PRIVATE_KEY'),
