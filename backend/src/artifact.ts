@@ -50,3 +50,14 @@ export function payablePdf(fields: {
   body += `trailer << /Size ${xref.length} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF\n`
   return Buffer.from(body, 'latin1')
 }
+
+/** Structured API/Telegram PDFs always emit `Number: …` in the stream. */
+export function invoiceNumberFromPdf(pdf: Buffer): string {
+  const m = pdf.toString('latin1').match(/Number: ([A-Za-z0-9._-]+)/)
+  return m?.[1] || ''
+}
+
+export function amountUsdFromPdf(pdf: Buffer): string {
+  const m = pdf.toString('latin1').match(/Amount USD: ([0-9.]+)/)
+  return m?.[1] || ''
+}

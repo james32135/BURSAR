@@ -7,6 +7,7 @@ import { parseUsdToUnits, sha256Bytes32 } from './util.ts'
 import { onchainInvoice, registerInvoice, vendorAllowed, vaultState } from './vault.ts'
 import { decide, explainWhy, memoryFlags } from './payable.ts'
 import { bandAroundUsd, matchObligation, upsertObligation } from './obligations.ts'
+import { invoiceNumberFromPdf, amountUsdFromPdf } from './artifact.ts'
 import { normalizeKind } from './rails.ts'
 import type { Workspace } from './workspace.ts'
 
@@ -199,11 +200,17 @@ async function finalizeAnalysis(
   const tee = await extractInvoicePng(png, invoiceHash)
   let amountUnits: bigint | null = null
   try {
-    if (tee.extracted?.total_usd) amountUnits = parseUsdToUnits(tee.extracted.total_usd)
+    const total = tee.extracted?.total_usd || amountUsdFromPdf(pdf)
+    if (total) amountUnits = parseUsdToUnits(total)
   } catch {
     amountUnits = null
   }
-  const remittance = tee.extracted?.remittance_usdc_e || ''
+  const extracted = { ...(tee.extracted || {}) }
+  const invoiceNumber = String(extracted.invoice_number || invoiceNumberFromPdf(pdf) || '').trim()
+  if (invoiceNumber) extracted.invoice_number = invoiceNumber
+  const pdfAmount = amountUsdFromPdf(pdf)
+  if (pdfAmount && !extracted.total_usd) extracted.total_usd = pdfAmount
+  const remittance = extracted.remittance_usdc_e || ''
   await recordEvent(ws.id, invoiceHash, 'checking_vendor', { remittance })
   const allowed = /^0x[a-fA-F0-9]{40}$/.test(remittance) ? await vendorAllowed(ws, remittance) : false
   const vs = await vaultState(ws)
@@ -212,7 +219,7 @@ async function finalizeAnalysis(
     invoiceHash,
     alreadyPaid,
     alreadySeen: false,
-    extracted: tee.extracted,
+    extracted,
     remittanceAllowed: allowed,
     amountUnits,
     band0Max: BigInt(vs.band0Max),
@@ -220,17 +227,17 @@ async function finalizeAnalysis(
   const extra = await memoryFlags({
     workspaceId: ws.id,
     invoiceHash,
-    vendor: tee.extracted?.vendor_name || '',
+    vendor: extracted.vendor_name || '',
     remittance,
     amountUnits,
-    invoiceNumber: tee.extracted?.invoice_number || '',
+    invoiceNumber,
   })
   const flags: Flag[] = [...screened.flags, ...extra]
   const matched =
-    remittance && tee.extracted?.vendor_name
+    remittance && extracted.vendor_name
       ? await matchObligation({
           workspaceId: ws.id,
-          vendor: tee.extracted.vendor_name,
+          vendor: extracted.vendor_name,
           remittance,
           amountUnits,
           invoiceHash,
@@ -251,14 +258,14 @@ async function finalizeAnalysis(
   const decision = decide(flags, amountUnits, BigInt(vs.band0Max))
   const why = explainWhy(flags, decision)
   if (matched?.inRange) why.unshift(matched.why)
-  const kindNorm = normalizeKind(tee.extracted?.payable_kind || kind)
-  if ((kindNorm === 'subscription' || kindNorm === 'recurring' || kindNorm === 'api-bill') && remittance && tee.extracted?.vendor_name) {
+  const kindNorm = normalizeKind(extracted.payable_kind || kind)
+  if ((kindNorm === 'subscription' || kindNorm === 'recurring' || kindNorm === 'api-bill') && remittance && extracted.vendor_name) {
     const remember = !matched ? decision !== 'blocked' : matched.inRange && decision === 'auto-pay'
     if (remember) {
-      const band = bandAroundUsd(tee.extracted.total_usd || '0')
+      const band = bandAroundUsd(extracted.total_usd || '0')
       await upsertObligation({
         workspaceId: ws.id,
-        vendor: tee.extracted.vendor_name,
+        vendor: extracted.vendor_name,
         remittance,
         cadence: kindNorm === 'api-bill' ? 'monthly' : kindNorm === 'subscription' ? 'monthly' : 'recurring',
         expectedMinUsd: band.min,
@@ -278,8 +285,8 @@ async function finalizeAnalysis(
       invoiceHash,
       status,
       JSON.stringify(flags),
-      JSON.stringify(tee.extracted || {}),
-      tee.extracted?.vendor_name || null,
+      JSON.stringify(extracted),
+      extracted.vendor_name || null,
       remittance || null,
       amountUnits == null ? null : amountUnits.toString(),
       tee.chatId,

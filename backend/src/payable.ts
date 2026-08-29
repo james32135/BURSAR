@@ -35,6 +35,7 @@ export function explainWhy(flags: Flag[], decision: Decision): string[] {
   }
   return flags.map((f) => {
     if (f.code === 'duplicate-paid' || f.code === 'duplicate-seen') return `Blocked: this payable hash was already ${f.code === 'duplicate-paid' ? 'paid' : 'ingested'}.`
+    if (f.code === 'invoice-splice') return `Blocked: manipulated duplicate. Same invoice number, different amount. ${f.detail}`
     if (f.code === 'duplicate-invoice-number') return `Blocked: invoice number ${f.detail} was already seen for this vendor.`
     if (f.code === 'bad-remittance') return 'Blocked: remittance is missing or not a 20-byte address.'
     if (f.code === 'vendor-not-allowlisted') return `Blocked: ${f.detail} is not on this vault allowlist.`
@@ -145,6 +146,10 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
   })
 }
 
+export function isInvoiceSplice(priorAmountUnits: string, nextAmountUnits: bigint | null): boolean {
+  return nextAmountUnits != null && priorAmountUnits !== '' && priorAmountUnits !== nextAmountUnits.toString()
+}
+
 export async function memoryFlags(input: {
   workspaceId: string
   invoiceHash?: string
@@ -157,17 +162,32 @@ export async function memoryFlags(input: {
   const db = await getDb()
   if (input.invoiceNumber) {
     const dup = await db.query(
-      `SELECT invoice_hash FROM invoices
-       WHERE workspace_id = $1 AND vendor = $2 AND extracted::text ILIKE $3
-         AND invoice_hash <> $4
+      `SELECT invoice_hash, amount_units, status FROM invoices
+       WHERE workspace_id = $1
+         AND invoice_hash <> $3
+         AND (
+           extracted->>'invoice_number' = $2
+           OR extracted::text ILIKE $4
+         )
+       ORDER BY CASE WHEN status = 'paid' THEN 0 ELSE 1 END, updated_at DESC
        LIMIT 1`,
-      [input.workspaceId, input.vendor, `%"invoice_number":"${input.invoiceNumber}"%`, input.invoiceHash || '']
+      [
+        input.workspaceId,
+        input.invoiceNumber,
+        input.invoiceHash || '',
+        `%"invoice_number":"${input.invoiceNumber}"%`,
+      ]
     )
     if (dup.rows[0]) {
+      const priorHash = String(dup.rows[0].invoice_hash)
+      const priorAmt = dup.rows[0].amount_units != null ? String(dup.rows[0].amount_units) : ''
+      const spliced = isInvoiceSplice(priorAmt, input.amountUnits)
       flags.push({
-        code: 'duplicate-invoice-number',
+        code: spliced ? 'invoice-splice' : 'duplicate-invoice-number',
         severity: 'block',
-        detail: input.invoiceNumber,
+        detail: spliced
+          ? `${input.invoiceNumber} was ${priorAmt} now ${input.amountUnits} (hash ${priorHash.slice(0, 10)}…)`
+          : input.invoiceNumber,
       })
     }
   }

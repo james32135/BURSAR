@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { screenInvoice } from '../src/screen.ts'
-import { decide, explainWhy, attentionFromRows, nextActionFor } from '../src/payable.ts'
+import { decide, explainWhy, attentionFromRows, nextActionFor, isInvoiceSplice } from '../src/payable.ts'
+import { invoiceNumberFromPdf, payablePdf } from '../src/artifact.ts'
 
 test('screen blocks extracted BTC rail', () => {
   const blocked = screenInvoice({
@@ -73,11 +74,35 @@ test('attention counts come from persisted rows, not decoration', () => {
   assert.equal(a.blockedUnits, '1')
 })
 
+test('structured PDF keeps the invoice number in the stream', () => {
+  const pdf = payablePdf({
+    vendor: 'Contoso Labs',
+    remittance: '0x1111111111111111111111111111111111111111',
+    amountUsd: '0.001',
+    invoiceNumber: 'CT-WAVE3-1',
+  })
+  assert.equal(invoiceNumberFromPdf(pdf), 'CT-WAVE3-1')
+  assert.equal(isInvoiceSplice('1000', 19_000_000000n), true)
+  assert.equal(isInvoiceSplice('1000', 1000n), false)
+})
+
 test('next action is PAY OPEN WHY or PROOF, never AI says safe', () => {
   assert.equal(nextActionFor({ status: 'clean', decision: 'auto-pay' }), 'PAY')
   assert.equal(nextActionFor({ status: 'flagged', decision: 'owner-review' }), 'OPEN')
   assert.equal(nextActionFor({ status: 'blocked', flags: [{ code: 'vendor-not-allowlisted', severity: 'block', detail: 'x' }] }), 'WHY')
   assert.equal(nextActionFor({ status: 'paid', pay_tx: '0xabc' }), 'PROOF')
+})
+
+test('invoice splice is a block, not owner-review', () => {
+  assert.equal(
+    decide([{ code: 'invoice-splice', severity: 'block', detail: 'CT-1 was 1000 now 19000000000' }], 19_000_000000n, 200_000000n),
+    'blocked'
+  )
+  const why = explainWhy(
+    [{ code: 'invoice-splice', severity: 'block', detail: 'CT-1 was 1000 now 19000000000' }],
+    'blocked'
+  )
+  assert.match(why[0], /manipulated duplicate/i)
 })
 
 test('unsupported rail why is explicit', () => {
