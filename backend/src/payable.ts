@@ -33,7 +33,11 @@ export function explainWhy(flags: Flag[], decision: Decision): string[] {
   if (!flags.length && decision === 'auto-pay') {
     return ['Trusted path: known or allowlisted remittance, unique hash, within Band 0, no anomaly.']
   }
-  return flags.map((f) => {
+  const ordered = [...flags].sort((a, b) => {
+    const rank = (s: string) => (s === 'block' ? 0 : s === 'review' ? 1 : 2)
+    return rank(a.severity) - rank(b.severity)
+  })
+  return ordered.map((f) => {
     if (f.code === 'duplicate-paid' || f.code === 'duplicate-seen') return `Blocked: this payable hash was already ${f.code === 'duplicate-paid' ? 'paid' : 'ingested'}.`
     if (f.code === 'invoice-splice') return `Blocked: manipulated duplicate. Same invoice number, different amount. ${f.detail}`
     if (f.code === 'duplicate-invoice-number') return `Blocked: invoice number ${f.detail} was already seen for this vendor.`

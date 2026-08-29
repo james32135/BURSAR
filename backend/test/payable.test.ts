@@ -103,6 +103,14 @@ test('invoice splice is a block, not owner-review', () => {
     'blocked'
   )
   assert.match(why[0], /manipulated duplicate/i)
+  const mixed = explainWhy(
+    [
+      { code: 'over-band0', severity: 'review', detail: 'x' },
+      { code: 'invoice-splice', severity: 'block', detail: 'CT-1 was 1000 now 18000000000' },
+    ],
+    'blocked'
+  )
+  assert.match(mixed[0], /manipulated duplicate/i)
 })
 
 test('unsupported rail why is explicit', () => {
