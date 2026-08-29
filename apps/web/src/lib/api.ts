@@ -65,6 +65,14 @@ export type Health = {
     slack: boolean
     discord: boolean
   }
+  agentId?: string | null
+  identity?: {
+    configured?: boolean
+    address?: string
+    standardsVerifiable?: boolean
+    supportsInterface?: Record<string, boolean>
+  }
+  product?: string
 }
 
 async function req(path: string, init?: RequestInit) {
@@ -183,6 +191,7 @@ export const api = {
     }),
   policy: () => req('/policy'),
   verify: (id: string) => fetch('/api/verify/' + id).then((r) => r.json()),
+  identity: () => fetch('/api/identity').then((r) => r.json()),
   events: () => req('/events') as Promise<{ events: { id: number; invoice_hash: string; kind: string; detail: unknown; created_at: string }[] }>,
   workspace: () => req('/workspace') as Promise<{
     workspace: { id: string; owner: string; vault: string; sessionId: string; agentAddress: string; demo: boolean }

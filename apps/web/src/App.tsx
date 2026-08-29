@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Landing } from '@/pages/Landing'
 import { AgentMcp } from '@/pages/AgentMcp'
+import { Verify } from '@/pages/Verify'
 import { Overview } from '@/pages/app/Overview'
 import { Inbox } from '@/pages/app/Inbox'
 import { InvoiceDetail } from '@/pages/app/InvoiceDetail'
@@ -21,6 +22,8 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/verify" element={<Verify />} />
+        <Route path="/verify/:id" element={<Verify />} />
         <Route path="/agent" element={<AgentMcp />} />
         <Route
           path="/start"

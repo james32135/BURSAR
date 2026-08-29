@@ -7,6 +7,7 @@ export const config = {
   matcher: [
     '/api/health',
     '/api/product',
+    '/api/identity',
     '/api/attention',
     '/api/policy',
     '/api/events',
