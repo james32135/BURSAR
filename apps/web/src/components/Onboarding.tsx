@@ -9,7 +9,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const slides = [
     {
       t: 'What this is',
-      d: 'BURSAR is the autonomous finance desk for Web3 teams. It receives invoices, checks them privately, and pays only when policy allows.',
+      d: 'BURSAR is the AP clerk that cannot steal. It reads invoices privately, blocks spliced and duplicate bills, and pays USDC.e only when the vault policy allows.',
     },
     {
       t: 'Owner vs agent',

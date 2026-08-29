@@ -13,8 +13,8 @@ import { addrUrl, shortHash, txUrl } from '@/lib/cn'
 
 gsap.registerPlugin(ScrollTrigger)
 
-const PAIN = 'Invoices arrive. Nobody remembers the vendor. Policy lives in a spreadsheet.'.split(' ')
-const DESK = 'BURSAR intakes, checks, remembers, pays what policy allows, and proves it.'.split(' ')
+const PAIN = 'Crypto teams paste vendor addresses into Discord. A fake invoice gets paid. USDC never comes back.'.split(' ')
+const DESK = 'Invoice in. Fake blocked. USDC paid. The clerk never owns the vault.'.split(' ')
 
 const FLOW = [
   { t: 'Source', d: 'PDF, API, MCP, SDK, or Telegram. Email intake coming later.' },
@@ -105,9 +105,9 @@ export function Landing() {
             <a href="#work" className="hover:text-[#09090b]">
               How it works
             </a>
-            <a href="#proof" className="hover:text-[#09090b]">
-              Proof
-            </a>
+            <Link to="/verify" className="hover:text-[#09090b]">
+              Verify
+            </Link>
             <Link to="/agent" className="hover:text-[#09090b]">
               MCP / SDK
             </Link>
@@ -128,13 +128,13 @@ export function Landing() {
         <section className="grid min-h-[100dvh] grid-cols-1 lg:grid-cols-2">
           <div className="flex flex-col justify-center bg-[#f4f4f5] px-6 pb-16 pt-24 text-[#18181b] md:px-12">
             <p className="hero-reveal mb-4 text-xs font-medium uppercase tracking-[0.22em] text-[#52525b]">
-              Autonomous finance inbox for Web3 teams
+              Accounts payable clerk for crypto companies · 0G Aristotle 16661
             </p>
             <h1 className="hero-reveal font-display max-w-2xl text-[clamp(2.3rem,4.2vw,3.7rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-balance">
-              Your finance inbox is waiting.
+              Invoice in. Fake blocked. USDC paid.
             </h1>
             <p className="hero-reveal mt-6 max-w-md text-base leading-relaxed text-[#52525b]">
-              Telegram, API, MCP, SDK, and PDF become one payable. Private 0G processing. Policy decides money. The agent never owns the vault.
+              The AI clerk that cannot steal. Direct TeeML reads the invoice. Policy vault pays USDC.e. Duplicate and spliced bills revert. The agent never holds the treasury key.
             </p>
             <div className="hero-reveal mt-8 flex flex-wrap gap-3">
               <Link
@@ -144,17 +144,17 @@ export function Landing() {
                 Get started <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                to="/agent"
+                to="/verify"
                 className="inline-flex h-11 items-center rounded-[4px] border border-[#18181b]/20 px-5 text-sm font-medium"
               >
-                Connect agent
+                Verify (no wallet)
               </Link>
             </div>
             <dl className="hero-reveal mt-10 grid max-w-lg grid-cols-3 gap-px overflow-hidden rounded-[4px] border border-[#18181b]/10 bg-[#18181b]/10">
               {[
-                { k: 'Intake', v: 'from work' },
-                { k: 'Decide', v: 'from policy' },
-                { k: 'Prove', v: 'on 0G' },
+                { k: 'Read', v: 'sealed TeeML' },
+                { k: 'Block', v: 'splice / duplicate' },
+                { k: 'Pay', v: 'vault USDC.e' },
               ].map((b) => (
                 <div key={b.k} className="bg-[#f4f4f5] px-4 py-3">
                   <dt className="font-display text-sm font-bold tracking-tight">{b.k}</dt>
@@ -209,10 +209,10 @@ export function Landing() {
           <div className="bento-grid mx-auto grid max-w-6xl grid-cols-1 gap-3 md:grid-cols-6 md:grid-rows-2">
             <article className="bento-card lift rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-4 md:row-span-2">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#2563eb]">01 · Object</p>
-              <h3 className="font-display mt-3 text-3xl font-bold tracking-tight">The object is a payable</h3>
+              <h3 className="font-display mt-3 text-3xl font-bold tracking-tight">The object is an invoice the vault will pay or reject</h3>
               <p className="mt-4 max-w-md text-[#a1a1aa]">
-                Not a PDF app. A payable can be an invoice, a contractor request, a renewal, or an agent expense. Every
-                one hits the same engine: identity, extraction, vendor memory, policy, pay or block, proof.
+                PDF, API, MCP, SDK, or Telegram become one payable. Same engine: sealed read, vendor memory, bands,
+                USDC.e, /verify. Email intake is not live.
               </p>
             </article>
             <article className="bento-card lift rounded-[4px] border border-white/10 p-8 md:col-span-2">
@@ -277,6 +277,22 @@ export function Landing() {
           </div>
         </section>
 
+        <section className="border-t border-white/10 bg-[#111113] px-6 py-24 md:px-12">
+          <div className="mx-auto max-w-6xl">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-red-300">The attack</p>
+            <h2 className="font-display mt-3 max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
+              Same invoice. Amount spliced to $19,000. Payment path dies.
+            </h2>
+            <p className="mt-4 max-w-xl text-[#a1a1aa]">
+              Replay of a paid hash reverts DuplicateInvoice on-chain. A new PDF with the same invoice number and a
+              bigger total is blocked as a manipulated duplicate before Band 0 can move USDC.e.
+            </p>
+            <Link to="/verify" className="mt-8 inline-flex text-sm text-[#93c5fd] underline">
+              Open /verify with no wallet
+            </Link>
+          </div>
+        </section>
+
         <section id="architecture" className="arch-section border-t border-white/10 bg-[#0c0c0e] px-6 py-28 md:px-12 md:py-36">
           <div className="mx-auto max-w-6xl">
             <h2 className="arch-panel font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
@@ -324,7 +340,7 @@ export function Landing() {
 
         <footer className="flex flex-col gap-3 border-t border-white/10 px-6 py-10 text-sm text-[#a1a1aa] md:flex-row md:items-center md:justify-between md:px-12">
           <span className="font-display font-bold text-white">BURSAR</span>
-          <span>Autonomous finance inbox. The vault is the final authority.</span>
+          <span>The AP clerk that cannot steal. The vault is the final authority.</span>
         </footer>
       </main>
     </SmoothScroll>
