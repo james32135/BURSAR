@@ -122,4 +122,7 @@ export class BursarClient {
   verifyPayment(id: string) {
     return this.verify(id)
   }
+  identity() {
+    return fetch(this.opts.baseUrl.replace(/\/$/, '') + '/identity').then((r) => r.json())
+  }
 }
