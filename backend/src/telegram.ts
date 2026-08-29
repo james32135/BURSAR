@@ -405,7 +405,8 @@ async function help(chatId: number) {
   await send(
     chatId,
     [
-      'BURSAR Telegram is the mobile control surface of the finance inbox.',
+      'BURSAR Telegram is the mobile desk of the AP clerk that cannot steal.',
+      'Invoice in. Fake blocked. USDC.e paid from the vault the agent does not own.',
       'Taps: PAY, VIEW, IGNORE, APPROVE IN APP.',
       '/start CODE — bind with a one-time Settings code',
       '/workspace — which vault this chat is bound to',

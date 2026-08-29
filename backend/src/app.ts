@@ -12,6 +12,7 @@ import { handleTelegramUpdate, issueTelegramBindCode, telegramStatus, unbindTele
 import { emailHealth, ingestEmailInbound } from './email.ts'
 import { executeAllowedPay } from './pay.ts'
 import { verifyPayment } from './verify.ts'
+import { probeAgentId } from './identity.ts'
 import {
   agentForbiddenCalls,
   onchainInvoice,
@@ -113,6 +114,9 @@ app.get('/health', async (c) => {
     visionProvider: config.visionProvider,
     teeSigner: '0x8561E0a9dA3C8d6591A2E756a91334f1a3E537e0',
     usdc: config.usdc,
+    agentId: config.agentId || null,
+    identity: await probeAgentId(rpc, config.agentId),
+    product: 'AP clerk that cannot steal',
     multiTenant: true,
     demoLabeled: true,
     privacy:
@@ -150,9 +154,11 @@ app.get('/product', async (c) => {
   const remittanceAllowed = await vendorAllowed(ctx, remittance)
   return c.json({
     name: 'BURSAR',
-    promise: 'Autonomous finance inbox for Web3 teams.',
+    promise: 'Invoice in. Fake blocked. USDC paid. The AP clerk that cannot steal.',
     chainId: config.chainId,
     factory: config.factory || null,
+    agentId: config.agentId || null,
+    identity: await probeAgentId(new ethers.JsonRpcProvider(config.rpcUrl), config.agentId),
     demo: {
       label: 'DEMO',
       vault: config.vault,
@@ -567,8 +573,26 @@ app.post('/integrations/email/inbound', async (c) => {
   return c.json(out.body, out.statusCode)
 })
 
+app.get('/identity', async (c) => {
+  const rpc = new ethers.JsonRpcProvider(config.rpcUrl)
+  return c.json(await probeAgentId(rpc, config.agentId))
+})
+
 app.get('/verify/:id', async (c) => {
   const id = c.req.param('id')
   const out = await verifyPayment(id)
-  return c.json(JSON.parse(JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))))
+  const rpc = new ethers.JsonRpcProvider(config.rpcUrl)
+  const identity = await probeAgentId(rpc, config.agentId)
+  return c.json(
+    JSON.parse(
+      JSON.stringify(
+        {
+          ...out,
+          identity,
+          attestation: out.attestation || 'EIP-191 processResponse signer recovery (not a hardware quote)',
+        },
+        (_k, v) => (typeof v === 'bigint' ? v.toString() : v)
+      )
+    )
+  )
 })

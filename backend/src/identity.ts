@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 
-/** Foundation 0g-agentic-id production IDs. Not Knole 0x4b396f04. */
+/** Foundation 0g-agentic-id production IDs. */
 export const PRODUCTION_7857 = {
   IERC165: '0x01ffc9a7',
   IERC721: '0x80ac58cd',
@@ -63,7 +63,7 @@ export async function probeAgentId(rpc: ethers.Provider, address?: string) {
     totalSupply: totalSupply.toString(),
     supportsInterface: supports,
     standardsVerifiable,
-    knoleCustomId: false,
+    unofficialInterfaceId: false,
     settlement: 'vault-usdc.e-transfer — Agentic ID is clerk identity, not vendor pay',
     iTransfer: 'reverts NoMainnetAttestor',
     processResponse: 'EIP-191 recovery, not a hardware quote',

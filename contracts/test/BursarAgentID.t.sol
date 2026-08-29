@@ -22,7 +22,7 @@ contract BursarAgentIDTest is Test {
         assertTrue(id.supportsInterface(0xdf597d99), "Authorize");
         assertTrue(id.supportsInterface(0x74f8628b), "Cloneable");
         assertFalse(id.supportsInterface(0xffffffff));
-        assertFalse(id.supportsInterface(0x4b396f04), "not Knole custom");
+        assertFalse(id.supportsInterface(0x4b396f04), "not unofficial custom");
     }
 
     function test_mint_binds_owner_vault_agent() public view {

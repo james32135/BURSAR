@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { PRODUCTION_7857 } from '../src/identity.ts'
 import { explainWhy } from '../src/payable.ts'
 
-test('production ERC-7857 IDs are the Foundation set, not Knole custom', () => {
+test('production ERC-7857 IDs are the Foundation set', () => {
   assert.equal(PRODUCTION_7857.IERC165, '0x01ffc9a7')
   assert.equal(PRODUCTION_7857.IERC721, '0x80ac58cd')
   assert.equal(PRODUCTION_7857.IERC7857, '0x2afbede9')
