@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
-import { txUrl, usd } from '@/lib/cn'
+import { addrUrl, txUrl, usd } from '@/lib/cn'
 import { LIVE } from '@/lib/live'
 import { MagneticButton } from '@/components/MagneticButton'
 import { PageHeader } from '@/components/Product'
@@ -14,14 +14,21 @@ export function Proof() {
   const [lookup, setLookup] = useState(id || LIVE.proofs[0].tx)
   const [active, setActive] = useState(id || LIVE.proofs[0].tx)
   const q = useQuery({ queryKey: ['verify', active], queryFn: () => api.verify(active), enabled: !!active })
+  const ident = useQuery({ queryKey: ['identity'], queryFn: api.identity })
   const v = q.data
   const ok = v?.status === 'VERIFIED'
+  const sup = ident.data?.supportsInterface || {}
 
   return (
     <div>
       <PageHeader
         title="Verify from chain."
-        body="Not a screenshot. /verify reconstructs Paid + USDC.e Transfer + Go merkle proof from the paying vault. The recovered AI signer is processResponse EIP-191 recovery — not a hardware TEE quote."
+        body="Not a screenshot. /verify reconstructs Paid + USDC.e Transfer + Go merkle proof. ERC-7857 supportsInterface is a live eth_call. The recovered AI signer is processResponse EIP-191 recovery — not a hardware TEE quote."
+        extra={
+          <Link to="/verify" className="font-mono text-xs text-[#93c5fd] underline">
+            Public /verify
+          </Link>
+        }
       />
       <form
         className="mt-6 flex flex-wrap gap-2"
@@ -103,6 +110,50 @@ export function Proof() {
           </motion.div>
         )}
       </div>
+      <section className="mt-10 rounded-[4px] border border-[var(--border)] p-6">
+        <h2 className="font-display text-xl font-bold">Clerk identity</h2>
+        <p className="mt-2 text-sm text-[var(--fg-muted)]">
+          Production ERC-7857 IDs 0x2afbede9 / 0xdf597d99 / 0x74f8628b. iTransfer reverts until a mainnet TEE attestor exists.
+          This is identity, not settlement.
+        </p>
+        <dl className="mt-4 grid grid-cols-[160px_1fr] gap-y-2 text-sm">
+          <dt className="text-[var(--fg-muted)]">Contract</dt>
+          <dd className="font-mono text-xs">
+            {ident.data?.address ? (
+              <a className="text-[#93c5fd]" href={addrUrl(ident.data.address)}>
+                {ident.data.address}
+              </a>
+            ) : (
+              'not configured'
+            )}
+          </dd>
+          <dt className="text-[var(--fg-muted)]">standards-verifiable</dt>
+          <dd>{ident.data?.standardsVerifiable ? 'true' : 'false'}</dd>
+          {Object.entries(sup).map(([k, val]) => (
+            <span key={k} className="contents">
+              <dt className="text-[var(--fg-muted)]">{k}</dt>
+              <dd className="font-mono text-xs">{String(val)}</dd>
+            </span>
+          ))}
+        </dl>
+      </section>
+      <section className="mt-8">
+        <h2 className="font-display text-xl font-bold">Proof deck</h2>
+        <ul className="mt-4 divide-y divide-[var(--border)] border-y border-[var(--border)]">
+          {LIVE.deck.map((row) => (
+            <li key={row.feature} className="flex flex-col gap-1 py-3 sm:flex-row sm:justify-between">
+              <span className="text-sm">{row.feature}</span>
+              {row.href ? (
+                <a className="font-mono text-xs text-[#93c5fd]" href={row.href}>
+                  {row.proof}
+                </a>
+              ) : (
+                <span className="font-mono text-xs text-[var(--fg-muted)]">{row.proof}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { AuthorityBadge } from '@/components/Product'
 export function AgentPage() {
   const wsQ = useQuery({ queryKey: ['workspace'], queryFn: api.workspace })
   const bounds = useQuery({ queryKey: ['agent-bounds'], queryFn: api.agentBounds, retry: false })
+  const ident = useQuery({ queryKey: ['identity'], queryFn: api.identity })
   const s = wsQ.data?.session
   const stats = wsQ.data?.stats
   const expiry = s?.expiry ? new Date(Number(s.expiry) * 1000).toISOString() : '-'
@@ -16,7 +17,7 @@ export function AgentPage() {
         <div>
           <h1 className="font-display text-4xl font-bold tracking-tight">Capability, not ownership.</h1>
           <p className="mt-3 max-w-xl text-[var(--fg-muted)]">
-            Give an existing agent BURSAR access without giving it treasury ownership. Same tools as MCP and @bursar/sdk.
+            The clerk is an ERC-7857 iNFT bound to this vault session. It can ingest and Band-0 pay. It cannot withdraw, add vendors, or hold the owner key.
           </p>
         </div>
         <AuthorityBadge kind="agent" />
@@ -77,6 +78,9 @@ export function AgentPage() {
       </div>
       <p className="mt-8 font-mono text-xs text-[var(--fg-muted)]">
         Session {s?.revoked ? 'revoked' : s?.exists ? 'active' : 'missing'} · cap {usd(s?.cap)} · spent {usd(s?.spent)} · remaining {usd(s?.remaining)} · {expiry}
+      </p>
+      <p className="mt-4 font-mono text-xs text-[var(--fg-muted)]">
+        Clerk iNFT {ident.data?.address || 'pending deploy'} · standards-verifiable {String(Boolean(ident.data?.standardsVerifiable))} · session agent {s?.agent || '-'}
       </p>
       <p className="mt-4 text-sm">
         <Link className="text-[#93c5fd] underline" to="/agent">Open MCP / SDK</Link>

@@ -59,14 +59,14 @@ export function Overview() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--fg-muted)]">Finance inbox</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--fg-muted)]">AP clerk desk</p>
           <h1 className="font-display mt-2 text-4xl font-bold tracking-tight md:text-5xl">
             {vs?.paused ? 'Vault is paused.' : 'What needs my attention?'}
           </h1>
           <p className="mt-3 max-w-xl text-[var(--fg-muted)]">
             {demo
               ? 'DEMO workspace (shared judge vault). Create your own from Get started.'
-              : 'These are the financial actions waiting for you. PDF is one intake adapter, not the product.'}
+              : 'Invoice in. Fake blocked. USDC paid. The agent never owns this vault.'}
           </p>
           <SourceChannels />
         </div>
