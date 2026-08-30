@@ -27,7 +27,11 @@ export function PipelineStrip({
   if (pipeline === 'queued' || pipeline === 'received') seen.add('received')
   return (
     <ol className="mt-6 flex flex-wrap gap-1">
-      {STEPS.filter((s) => s.id !== 'blocked' || current === 'blocked' || seen.has('blocked')).map((s) => {
+      {STEPS.filter((s) => {
+        if (s.id === 'blocked') return current === 'blocked' || seen.has('blocked')
+        if ((current === 'blocked' || seen.has('blocked')) && (s.id === 'paying' || s.id === 'confirmed' || s.id === 'verified')) return false
+        return true
+      }).map((s) => {
         const on = seen.has(s.id) || s.id === current
         const active = s.id === current
         return (

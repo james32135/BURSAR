@@ -296,19 +296,28 @@ export function Landing() {
               Paid, USDC.e Transfer, and Go merkle proof must agree. Storage roots open on storagescan.0g.ai.
             </p>
             <ul className="mt-10 grid gap-px overflow-hidden rounded-[4px] border border-white/10 bg-white/10 sm:grid-cols-2">
-              {LIVE.proofs.slice(0, 8).map((p) => (
+              {LIVE.proofs.slice(0, 8).map((p) => {
+                const splice = p.tx === LIVE.featured.blocked.invoice
+                return (
                 <li key={p.tx} className="bg-[#09090b] px-5 py-4">
                   <p className="text-sm">{p.label}</p>
-                  <a className="mt-1 inline-block font-mono text-xs text-[#93c5fd]" href={txUrl(p.tx)}>
-                    {shortHash(p.tx, 8)}
-                  </a>
+                  {splice ? (
+                    <Link className="mt-1 inline-block font-mono text-xs text-[#93c5fd]" to={'/verify/' + p.tx}>
+                      {shortHash(p.tx, 8)}
+                    </Link>
+                  ) : (
+                    <a className="mt-1 inline-block font-mono text-xs text-[#93c5fd]" href={txUrl(p.tx)}>
+                      {shortHash(p.tx, 8)}
+                    </a>
+                  )}
                   {'storageRoot' in p && p.storageRoot ? (
                     <a className="ml-3 font-mono text-xs text-[#93c5fd]" href={storageUrl(p.storageRoot)}>
                       root {shortHash(p.storageRoot, 4)}
                     </a>
                   ) : null}
                 </li>
-              ))}
+                )
+              })}
             </ul>
             <div className="mt-8 flex flex-wrap gap-4 text-sm">
               <Link to="/verify" className="text-[#93c5fd] underline">
