@@ -9,13 +9,16 @@ The accounts-payable clerk for crypto companies on **0G Aristotle chain 16661**.
 | Live | URL |
 | --- | --- |
 | Console | [bursarx.vercel.app](https://bursarx.vercel.app) |
-| 90s desk (no wallet) | [bursarx.vercel.app/desk](https://bursarx.vercel.app/desk) |
+| Owner desk (wallet) | [bursarx.vercel.app/start](https://bursarx.vercel.app/start) |
+| 90s proofs (no wallet) | [bursarx.vercel.app/desk](https://bursarx.vercel.app/desk) |
 | Public verify | [bursarx.vercel.app/verify](https://bursarx.vercel.app/verify) |
 | API health | [bursar-api.onrender.com/health](https://bursar-api.onrender.com/health) |
 | Telegram | [@BURSARxbot](https://t.me/BURSARxbot) |
 | CI | [GitHub Actions](https://github.com/james32135/BURSAR/actions/workflows/test.yml) |
 
-Start here as a judge: open [/desk](https://bursarx.vercel.app/desk), then click **Paid** and **Splice blocked**. Reconstruct both from ChainScan and StorageScan. No MetaMask.
+Start here as a judge: open [/desk](https://bursarx.vercel.app/desk) with no wallet, then click **Paid** and **Splice blocked**. Reconstruct both from ChainScan and StorageScan.
+
+**Try the desk** and nav **Desk** open the real owner flow: [connect wallet → resume or bind vault → Attention](https://bursarx.vercel.app/start). They do not open the shared DEMO vault. DEMO is a labeled footer button on `/start` only.
 
 ---
 

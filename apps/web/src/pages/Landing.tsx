@@ -12,6 +12,8 @@ import { HeroDesk } from '@/components/HeroDesk'
 import { LIVE } from '@/lib/live'
 import { api } from '@/lib/api'
 import { addrUrl, shortHash, storageUrl, txUrl } from '@/lib/cn'
+import { realDeskPath } from '@/lib/workspace'
+import { TelegramMark } from '@/components/TelegramMark'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -169,9 +171,18 @@ export function Landing() {
             <p className="hero-reveal mt-5 max-w-md text-base leading-relaxed text-[#52525b]">
               Direct TeeML reads invoices. The vault pays USDC.e. Spliced bills stop. The agent never holds the key.
             </p>
+            <a
+              href={LIVE.telegram}
+              target="_blank"
+              rel="noreferrer"
+              className="hero-reveal mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#18181b]"
+            >
+              <TelegramMark className="h-5 w-5" />
+              <span>Telegram @BURSARxbot</span>
+            </a>
             <div className="hero-reveal mt-8 flex flex-wrap gap-3">
               <Link
-                to="/desk"
+                to={realDeskPath()}
                 className="inline-flex h-11 items-center gap-2 rounded-[4px] bg-[#18181b] px-5 text-sm font-medium text-white"
               >
                 Try the desk <ArrowRight className="h-4 w-4" />
@@ -183,8 +194,17 @@ export function Landing() {
                 Verify paid tx
               </Link>
             </div>
+            <p className="hero-reveal mt-4 max-w-md text-xs text-[#71717a]">
+              Opens the real owner desk. Connect the wallet, resume or bind your vault, then Attention. Not the shared DEMO vault.
+            </p>
           </div>
-          <div className="flex flex-col justify-center gap-3 bg-[#09090b] px-6 py-16 lg:min-h-[100dvh] lg:px-10">
+          <div className="flex items-center justify-center bg-[#09090b] px-4 py-16 lg:min-h-[100dvh] lg:px-8">
+            <HeroDesk className="hero-reveal w-full max-w-[min(92vw,560px)]" />
+          </div>
+        </section>
+
+        <section className="border-t border-white/10 bg-[#09090b] px-6 py-10 md:px-12">
+          <div className="mx-auto grid max-w-6xl gap-3 lg:grid-cols-2">
             <LiveProofCard kind="paid" />
             <LiveProofCard kind="blocked" />
           </div>
@@ -280,9 +300,6 @@ export function Landing() {
                 </div>
               ))}
             </div>
-            <div className="mt-14 flex justify-center">
-              <HeroDesk className="w-full max-w-[min(88vw,560px)]" />
-            </div>
             <p className="mt-8 max-w-2xl text-sm text-[#a1a1aa]">
               processResponse is EIP-191 recovery of the registered TEE signer, not a hardware quote. We do not claim that 0G cannot see your data.
             </p>
@@ -324,7 +341,7 @@ export function Landing() {
                 Public /verify
               </Link>
               <Link to="/desk" className="text-[#93c5fd] underline">
-                Side by side desk
+                Public proofs (no wallet)
               </Link>
               <a className="text-[#93c5fd] underline" href={addrUrl(LIVE.factory)}>
                 Factory {shortHash(LIVE.factory, 4)}
