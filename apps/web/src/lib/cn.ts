@@ -18,5 +18,8 @@ export function usd(units: number | string | null | undefined) {
 }
 
 export const EXPLORER = 'https://chainscan.0g.ai'
+export const STORAGE_SCAN = 'https://storagescan.0g.ai'
 export const txUrl = (hash: string) => `${EXPLORER}/tx/${hash}`
 export const addrUrl = (addr: string) => `${EXPLORER}/address/${addr}`
+export const storageUrl = (root?: string | null) =>
+  root ? `${STORAGE_SCAN}/?root=${root}` : STORAGE_SCAN

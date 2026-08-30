@@ -16,7 +16,7 @@ export function Vendors() {
     <div>
       <PageHeader
         title="Vendor memory"
-        body="Trusted recipient, typical range, last pay, frequency, and recipient changes — from this workspace history. A new address for a known vendor is OWNER REVIEW, not auto-pay."
+        body="Trusted recipient, typical range, last pay, frequency, and recipient changes from this workspace history. A new address for a known vendor is OWNER REVIEW, not auto-pay."
         extra={<AuthorityBadge kind="owner" />}
       />
       <p className="mt-3 font-mono text-xs text-[var(--fg-muted)]">

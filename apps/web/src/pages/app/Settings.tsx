@@ -94,8 +94,8 @@ export function Settings() {
         <dd className="break-all font-mono text-xs">{session}</dd>
         <dt className="text-[var(--fg-muted)]">Intake</dt>
         <dd className="text-xs text-[var(--fg-muted)]">
-          PDF {channels?.pdf ? 'on' : '—'} · API {channels?.api ? 'on' : '—'} · MCP {channels?.mcp ? 'on' : '—'} · SDK{' '}
-          {channels?.sdk ? 'on' : '—'} · Telegram {channels?.telegram ? `live @${channels.telegramBot || 'BURSARxbot'}` : 'adapter only'} · Email{' '}
+          PDF {channels?.pdf ? 'on' : '-'} · API {channels?.api ? 'on' : '-'} · MCP {channels?.mcp ? 'on' : '-'} · SDK{' '}
+          {channels?.sdk ? 'on' : '-'} · Telegram {channels?.telegram ? `live @${channels.telegramBot || 'BURSARxbot'}` : 'adapter only'} · Email{' '}
           {channels?.email ? `live ${channels.emailAddress || ''}` : 'coming later'} · Slack/Discord {channels?.slack || channels?.discord ? 'on' : 'rejected'}
         </dd>
         <dt className="text-[var(--fg-muted)]">Telegram</dt>

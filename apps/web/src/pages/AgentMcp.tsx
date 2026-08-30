@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { MagneticButton } from '@/components/MagneticButton'
+import { MarketingHeader } from '@/components/MarketingHeader'
 
 const SDK = `npm install @bursar/sdk
 
@@ -36,24 +35,17 @@ payments
 vendors
 policy
 
-# forbidden — never treasury ownership
+# forbidden - never treasury ownership
 setVendor withdraw setPaused setBands
 createSession transferOwnership ownerPay pause revoke addVendor`
 
 export function AgentMcp() {
   return (
     <div className="min-h-[100dvh] bg-[#09090b] text-[#fafafa]">
-      <div className="grain" aria-hidden />
-      <header className="flex h-16 items-center justify-between px-6 md:px-10">
-        <Link to="/" className="font-display text-lg font-bold">BURSAR</Link>
-        <div className="flex gap-2">
-          <MagneticButton href="/start" variant="ghost" className="border-white/15 text-white">Get started</MagneticButton>
-          <MagneticButton href="/app" className="bg-white text-[#09090b]">Open console</MagneticButton>
-        </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-6 py-20">
+      <MarketingHeader />
+      <main className="mx-auto max-w-4xl px-6 pb-20 pt-24">
         <h1 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
-          Give your existing agent access to BURSAR without giving it treasury ownership.
+          Give your existing agent access to BURSAR without giving it the treasury.
         </h1>
         <p className="mt-4 max-w-xl text-[#a1a1aa]">
           MCP and @bursar/sdk call the same scoped API. setVendor, withdraw, setPaused, and ownerPay return forbidden.

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
-import { addrUrl, txUrl, usd } from '@/lib/cn'
+import { addrUrl, txUrl, usd, storageUrl } from '@/lib/cn'
 import { LIVE } from '@/lib/live'
 import { MagneticButton } from '@/components/MagneticButton'
 import { PageHeader } from '@/components/Product'
@@ -11,8 +11,8 @@ import { motion } from 'motion/react'
 
 export function Proof() {
   const { id } = useParams()
-  const [lookup, setLookup] = useState(id || LIVE.proofs[0].tx)
-  const [active, setActive] = useState(id || LIVE.proofs[0].tx)
+  const [lookup, setLookup] = useState(id || LIVE.featured.paid.tx)
+  const [active, setActive] = useState(id || LIVE.featured.paid.tx)
   const q = useQuery({ queryKey: ['verify', active], queryFn: () => api.verify(active), enabled: !!active })
   const ident = useQuery({ queryKey: ['identity'], queryFn: api.identity })
   const v = q.data
@@ -23,7 +23,7 @@ export function Proof() {
     <div>
       <PageHeader
         title="Verify from chain."
-        body="Not a screenshot. /verify reconstructs Paid + USDC.e Transfer + Go merkle proof. ERC-7857 supportsInterface is a live eth_call. The recovered AI signer is processResponse EIP-191 recovery — not a hardware TEE quote."
+        body="Not a screenshot. /verify reconstructs Paid + USDC.e Transfer + Go merkle proof. ERC-7857 supportsInterface is a live eth_call. The recovered AI signer is processResponse EIP-191 recovery, not a hardware TEE quote."
         extra={
           <Link to="/verify" className="font-mono text-xs text-[#93c5fd] underline">
             Public /verify
@@ -46,7 +46,27 @@ export function Proof() {
         <MagneticButton type="submit" variant="seal">Verify on 0G</MagneticButton>
       </form>
       <div className="mt-4 flex flex-wrap gap-2">
-        {LIVE.proofs.filter((p) => 'invoice' in p).map((p) => (
+        <button
+          type="button"
+          className="rounded-[4px] border border-emerald-500/40 px-3 py-1 font-mono text-[10px] uppercase text-emerald-300"
+          onClick={() => {
+            setLookup(LIVE.featured.paid.tx)
+            setActive(LIVE.featured.paid.tx)
+          }}
+        >
+          Paid
+        </button>
+        <button
+          type="button"
+          className="rounded-[4px] border border-red-500/35 px-3 py-1 font-mono text-[10px] uppercase text-red-300"
+          onClick={() => {
+            setLookup(LIVE.featured.blocked.invoice)
+            setActive(LIVE.featured.blocked.invoice)
+          }}
+        >
+          Splice blocked
+        </button>
+        {LIVE.proofs.filter((p) => 'invoice' in p && p.tx !== LIVE.featured.paid.tx && p.tx !== LIVE.featured.blocked.tx).slice(0, 4).map((p) => (
           <button
             key={p.tx}
             type="button"
@@ -56,7 +76,7 @@ export function Proof() {
               setActive(p.tx)
             }}
           >
-            DEMO {p.label}
+            {p.label}
           </button>
         ))}
       </div>
@@ -76,7 +96,16 @@ export function Proof() {
               <dt className="text-[var(--fg-muted)]">Amount</dt><dd>{v.amount ? usd(v.amount) : '-'}</dd>
               <dt className="text-[var(--fg-muted)]">Vendor</dt><dd className="break-all font-mono text-xs">{v.vendor}</dd>
               <dt className="text-[var(--fg-muted)]">Artifact hash</dt><dd className="break-all font-mono text-xs">{v.invoiceHash || '-'}</dd>
-              <dt className="text-[var(--fg-muted)]">Storage root</dt><dd className="break-all font-mono text-xs">{v.storageRoot}</dd>
+              <dt className="text-[var(--fg-muted)]">Storage root</dt>
+              <dd className="break-all font-mono text-xs">
+                {v.storageRoot ? (
+                  <a className="text-[#93c5fd]" href={v.storageScan || storageUrl(v.storageRoot)}>
+                    {v.storageRoot}
+                  </a>
+                ) : (
+                  '-'
+                )}
+              </dd>
               <dt className="text-[var(--fg-muted)]">Payment tx</dt><dd className="break-all font-mono text-xs">{v.txHash || '-'}</dd>
               <dt className="text-[var(--fg-muted)]">USDC.e transfer</dt><dd className="break-all font-mono text-xs">{v.usdcTransfer ? `${v.usdcTransfer.from} → ${v.usdcTransfer.to} ${usd(v.usdcTransfer.value)}` : '-'}</dd>
               <dt className="text-[var(--fg-muted)]">Vault</dt><dd className="break-all font-mono text-xs">{v.vault || '-'}</dd>

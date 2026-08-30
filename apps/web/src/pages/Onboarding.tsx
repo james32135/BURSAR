@@ -199,7 +199,7 @@ export default function Onboarding() {
               {!ready ? 'wallet…' : authenticated || authed ? (addr || user?.wallet?.address || 'Connected') : 'Not connected'}
             </p>
             <p className="mt-2 max-w-xl text-sm text-[#a1a1aa]">
-              BURSAR never asks for a seed phrase or private key. Sign the owner login in MetaMask. 0G Aristotle (16661) is added only when you create or fund a vault — not at login.
+              BURSAR never asks for a seed phrase or private key. Sign the owner login in MetaMask. 0G Aristotle (16661) is added only when you create or fund a vault, not at login.
             </p>
             {!authenticated && (
               <MagneticButton

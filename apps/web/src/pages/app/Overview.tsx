@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api, attentionFromInvoices, flagsOf, hashOf, type Invoice } from '@/lib/api'
-import { usd } from '@/lib/cn'
+import { usd, txUrl, storageUrl, shortHash } from '@/lib/cn'
+import { LIVE } from '@/lib/live'
 import { StatusChip } from '@/components/StatusChip'
 import { AuthorityBadge } from '@/components/Product'
 import { SourceChannels } from '@/components/SourceChannels'
@@ -66,8 +67,19 @@ export function Overview() {
           <p className="mt-3 max-w-xl text-[var(--fg-muted)]">
             {demo
               ? 'DEMO workspace (shared judge vault). Create your own from Get started.'
-              : 'Invoice in. Fake blocked. USDC paid. The agent never owns this vault.'}
+              : 'Invoice in. Fake blocked. USDC paid. Next action is PAY, OPEN, WHY, or PROOF.'}
           </p>
+          <div className="mt-4 flex flex-wrap gap-3 text-xs">
+            <a className="font-mono text-[#93c5fd] underline" href={txUrl(LIVE.featured.paid.tx)}>
+              Paid {shortHash(LIVE.featured.paid.tx, 4)}
+            </a>
+            <Link className="font-mono text-[#93c5fd] underline" to={'/verify/' + LIVE.featured.blocked.invoice}>
+              Splice blocked
+            </Link>
+            <a className="font-mono text-[#93c5fd] underline" href={storageUrl(LIVE.featured.paid.storageRoot)}>
+              Storage root
+            </a>
+          </div>
           <SourceChannels />
         </div>
         <span className={`inline-flex rounded-[4px] border px-3 py-1 font-mono text-[10px] uppercase ${vs?.paused ? 'border-red-500/40 text-red-300' : 'border-emerald-500/40 text-emerald-300'}`}>
@@ -77,7 +89,7 @@ export function Overview() {
 
       <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { k: 'New', v: String(att?.new ?? '—'), sub: usd(att?.totalUnits) },
+            { k: 'New', v: String(att?.new ?? '-'), sub: usd(att?.totalUnits) },
           { k: 'Auto-pay', v: String(att?.autoPay ?? 0), sub: usd(att?.autoApprovedUnits) },
           { k: 'Owner review', v: String(att?.ownerReview ?? 0), sub: usd(att?.waitingForYouUnits) },
           { k: 'Blocked', v: `${att?.blocked ?? 0}${att?.duplicate ? ` · ${att.duplicate} dup` : ''}`, sub: usd(att?.blockedUnits) },
@@ -152,10 +164,10 @@ export function Overview() {
                   <td className="py-3 pr-3">
                     <StatusChip status={inv.status} />
                   </td>
-                  <td className="max-w-[240px] truncate py-3 pr-3 text-xs text-[var(--fg-muted)]">
-                    {Array.isArray(inv.why) && inv.why[0] ? inv.why[0] : flagsOf(inv)[0]?.code || '—'}
+                  <td className="max-w-[280px] py-3 pr-3 text-xs text-[var(--fg-muted)]">
+                    {Array.isArray(inv.why) && inv.why[0] ? inv.why[0] : flagsOf(inv)[0]?.code || '-'}
                   </td>
-                  <td className="py-3 pr-3 font-mono text-[10px]">{inv.dueDate || '—'}</td>
+                  <td className="py-3 pr-3 font-mono text-[10px]">{inv.dueDate || '-'}</td>
                   <td className="py-3 pr-3">
                     <Link
                       to={action === 'PROOF' && inv.pay_tx ? '/app/proof/' + inv.pay_tx : '/app/inbox/' + hashOf(inv)}

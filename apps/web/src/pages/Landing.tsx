@@ -1,89 +1,152 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useReducedMotion } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
 import { MagneticButton } from '@/components/MagneticButton'
+import { MarketingHeader } from '@/components/MarketingHeader'
 import { SmoothScroll } from '@/components/SmoothScroll'
 import { HeroDesk } from '@/components/HeroDesk'
-import { SvgArchitecture, SvgEngine, SvgPain, SvgVerify } from '@/components/svg/BursarScenes'
 import { LIVE } from '@/lib/live'
-import { addrUrl, shortHash, txUrl } from '@/lib/cn'
+import { api } from '@/lib/api'
+import { addrUrl, shortHash, storageUrl, txUrl } from '@/lib/cn'
 
 gsap.registerPlugin(ScrollTrigger)
 
-const PAIN = 'Crypto teams paste vendor addresses into Discord. A fake invoice gets paid. USDC never comes back.'.split(' ')
-const DESK = 'Invoice in. Fake blocked. USDC paid. The clerk never owns the vault.'.split(' ')
+const STACK = [
+  {
+    t: '0G Chain',
+    d: 'Aristotle 16661. Isolated BursarVault. Band 0 session pay. DuplicateInvoice revert.',
+    href: addrUrl(LIVE.ownerVault),
+    proof: shortHash(LIVE.ownerVault, 4),
+  },
+  {
+    t: '0G Compute',
+    d: `Direct TeeML ${LIVE.model}. processResponse recovers signer ${shortHash(LIVE.teeSigner, 4)} via EIP-191.`,
+    href: LIVE.compute,
+    proof: LIVE.model,
+  },
+  {
+    t: '0G Storage',
+    d: 'Encrypted invoice bytes. Go client must print Succeeded to validate the downloaded file.',
+    href: storageUrl(LIVE.featured.paid.storageRoot),
+    proof: shortHash(LIVE.featured.paid.storageRoot, 4),
+  },
+  {
+    t: 'Agentic ID',
+    d: 'Production ERC-7857 clerk iNFT. Identity only. Settlement is vault USDC.e.',
+    href: addrUrl(LIVE.agentId),
+    proof: shortHash(LIVE.agentId, 4),
+  },
+]
 
 const FLOW = [
-  { t: 'Source', d: 'PDF, API, MCP, SDK, or Telegram. Email intake coming later.' },
-  { t: 'Private AI', d: 'Direct TeeML. processResponse recovers the registered signer via EIP-191.' },
-  { t: 'Memory', d: 'Vendor remittance, typical amount, last pay, recipient changes.' },
-  { t: 'Policy', d: 'Band 0 auto-pay. Band 1 owner review. Pause, expiry, revoke.' },
-  { t: 'Action', d: 'The agent pays what is allowed. Dangerous payables stop.' },
-  { t: 'Money', d: 'USDC.e transfer from this workspace vault only.' },
-  { t: 'Proof', d: 'Storage root, Go proof, Paid event, ChainScan, /verify.' },
+  { t: 'Source', d: 'PDF, API, MCP, SDK, or Telegram. Email is not live.' },
+  { t: 'Store', d: 'Encrypt. Upload to 0G Storage. Keep the root hash.' },
+  { t: 'Prove', d: 'Go merkle download. File must validate.' },
+  { t: 'Read', d: 'Direct TeeML vision. Recover the registered TEE signer.' },
+  { t: 'Screen', d: 'Vendor memory, bands, duplicate hash, invoice splice.' },
+  { t: 'Pay', d: 'Session transfer from this vault only, or a hard block.' },
+  { t: 'Verify', d: 'Public /verify. Paid + Transfer + Go proof must agree.' },
 ]
+
+function LiveProofCard({ kind }: { kind: 'paid' | 'blocked' }) {
+  const featured = kind === 'paid' ? LIVE.featured.paid : LIVE.featured.blocked
+  const id = kind === 'paid' ? featured.tx : featured.invoice
+  const q = useQuery({ queryKey: ['verify', id], queryFn: () => api.verify(id) })
+  const v = q.data
+  const paid = kind === 'paid'
+  const status = q.isFetching ? '…' : v?.status || (paid ? 'VERIFIED' : 'BLOCKED')
+  return (
+    <article className={`hero-reveal rounded-[4px] border p-6 ${paid ? 'border-emerald-500/40' : 'border-red-500/35'} bg-[#111113]`}>
+      <p className={`font-mono text-[10px] uppercase tracking-[0.18em] ${paid ? 'text-emerald-300' : 'text-red-300'}`}>
+        {paid ? 'Paid' : 'Blocked'} · {status}
+      </p>
+      <p className="font-display mt-2 text-2xl font-bold">
+        {paid ? '0.001 USDC.e left the vault' : 'Same invoice. Amount spliced. $0.'}
+      </p>
+      <p className="mt-2 font-mono text-xs text-[#a1a1aa]">{shortHash(id, 8)}</p>
+      <p className="mt-3 text-sm text-[#a1a1aa]">{featured.note}</p>
+      <div className="mt-4 flex flex-wrap gap-3 text-xs">
+        <Link className="text-[#93c5fd] underline" to={'/verify/' + id}>
+          Open /verify
+        </Link>
+        {paid ? (
+          <a className="text-[#93c5fd] underline" href={txUrl(featured.tx)}>
+            ChainScan
+          </a>
+        ) : null}
+        <a className="text-[#93c5fd] underline" href={storageUrl(featured.storageRoot)}>
+          Storage root
+        </a>
+      </div>
+    </article>
+  )
+}
 
 export function Landing() {
   const root = useRef<HTMLDivElement>(null)
+  const pan = useRef<HTMLDivElement>(null)
+  const track = useRef<HTMLDivElement>(null)
   const reduce = useReducedMotion()
 
   useEffect(() => {
     if (reduce || !root.current) return
     const ctx = gsap.context(() => {
       gsap.from('.hero-reveal', {
-        y: 40,
-        opacity: 0,
-        filter: 'blur(10px)',
-        duration: 0.85,
-        stagger: 0.09,
-        ease: 'power3.out',
-      })
-      gsap.utils.toArray<HTMLElement>('.story-pin').forEach((section) => {
-        const words = section.querySelectorAll('.word')
-        gsap.set(words, { opacity: 0.12 })
-        gsap.to(words, {
-          opacity: 1,
-          stagger: 0.04,
-          ease: 'none',
-          scrollTrigger: { trigger: section, start: 'top top', end: '+=80%', pin: true, scrub: 0.6 },
-        })
-      })
-      const pipe = root.current!.querySelector('.flow-pin')
-      if (pipe) {
-        gsap.from(pipe.querySelectorAll('.flow-step'), {
-          y: 80,
-          opacity: 0.15,
-          stagger: 0.12,
-          ease: 'none',
-          scrollTrigger: { trigger: pipe, start: 'top top', end: '+=140%', pin: true, scrub: 0.8 },
-        })
-      }
-      gsap.from('.arch-panel', {
-        y: 32,
-        opacity: 0,
-        duration: 0.7,
-        stagger: 0.1,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: '.arch-section', start: 'top 70%' },
-      })
-      gsap.from('.bento-card', {
         y: 28,
         opacity: 0,
         duration: 0.7,
         stagger: 0.08,
         ease: 'power3.out',
-        scrollTrigger: { trigger: '.bento-grid', start: 'top 78%' },
       })
-      gsap.from('.proof-row', {
-        x: 16,
+      if (pan.current && track.current) {
+        const distance = () => Math.max(0, track.current!.scrollWidth - window.innerWidth)
+        gsap.to(track.current, {
+          x: () => -distance(),
+          ease: 'none',
+          scrollTrigger: {
+            trigger: pan.current,
+            start: 'top top',
+            end: () => `+=${distance()}`,
+            pin: true,
+            scrub: 1,
+            invalidateOnRefresh: true,
+          },
+        })
+      }
+      const cards = gsap.utils.toArray<HTMLElement>('.stack-card')
+      cards.forEach((card, i) => {
+        if (i === cards.length - 1) return
+        ScrollTrigger.create({
+          trigger: card,
+          start: 'top top',
+          endTrigger: cards[cards.length - 1],
+          end: 'top top',
+          pin: true,
+          pinSpacing: false,
+        })
+        gsap.to(card, {
+          scale: 0.94,
+          opacity: 0.55,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: cards[i + 1],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: true,
+          },
+        })
+      })
+      gsap.from('.flow-step', {
+        y: 36,
         opacity: 0,
-        duration: 0.5,
         stagger: 0.08,
-        ease: 'power2.out',
-        scrollTrigger: { trigger: '#proof', start: 'top 72%' },
+        duration: 0.55,
+        ease: 'power3.out',
+        scrollTrigger: { trigger: '#work', start: 'top 72%' },
       })
     }, root)
     return () => ctx.revert()
@@ -93,155 +156,132 @@ export function Landing() {
     <SmoothScroll>
       <main ref={root} className="w-full max-w-full overflow-x-hidden bg-[#09090b] text-[#fafafa]">
         <div className="grain" aria-hidden />
-
-        <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-black/10 bg-[#f4f4f5]/90 px-5 text-[#18181b] backdrop-blur-md md:px-10">
-          <Link to="/" className="font-display text-lg font-bold tracking-tight">
-            BURSAR
-          </Link>
-          <nav className="hidden items-center gap-8 text-sm text-[#52525b] md:flex">
-            <a href="#story" className="hover:text-[#09090b]">
-              Story
-            </a>
-            <a href="#work" className="hover:text-[#09090b]">
-              How it works
-            </a>
-            <Link to="/verify" className="hover:text-[#09090b]">
-              Verify
-            </Link>
-            <Link to="/agent" className="hover:text-[#09090b]">
-              MCP / SDK
-            </Link>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/start"
-              className="hidden h-9 items-center rounded-[4px] border border-[#09090b]/20 px-3 text-xs font-medium md:inline-flex"
-            >
-              Get started
-            </Link>
-            <MagneticButton href="/app" className="h-9 bg-[#09090b] px-3 text-xs uppercase tracking-wide text-white">
-              Open console
-            </MagneticButton>
-          </div>
-        </header>
+        <MarketingHeader light />
 
         <section className="grid min-h-[100dvh] grid-cols-1 lg:grid-cols-2">
-          <div className="flex flex-col justify-center bg-[#f4f4f5] px-6 pb-16 pt-24 text-[#18181b] md:px-12">
-            <p className="hero-reveal mb-4 text-xs font-medium uppercase tracking-[0.22em] text-[#52525b]">
-              Accounts payable clerk for crypto companies · 0G Aristotle 16661
+          <div className="flex flex-col justify-center bg-[#f4f4f5] px-6 pb-12 pt-24 text-[#18181b] md:px-12">
+            <p className="hero-reveal text-xs font-medium uppercase tracking-[0.22em] text-[#52525b]">
+              AP clerk on 0G Aristotle 16661
             </p>
-            <h1 className="hero-reveal font-display max-w-2xl text-[clamp(2.3rem,4.2vw,3.7rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-balance">
+            <h1 className="hero-reveal font-display mt-3 max-w-xl text-[clamp(2.2rem,4vw,3.6rem)] font-extrabold leading-[1.02] tracking-[-0.04em]">
               Invoice in. Fake blocked. USDC paid.
             </h1>
-            <p className="hero-reveal mt-6 max-w-md text-base leading-relaxed text-[#52525b]">
-              The AI clerk that cannot steal. Direct TeeML reads the invoice. Policy vault pays USDC.e. Duplicate and spliced bills revert. The agent never holds the treasury key.
+            <p className="hero-reveal mt-5 max-w-md text-base leading-relaxed text-[#52525b]">
+              Direct TeeML reads invoices. The vault pays USDC.e. Spliced bills stop. The agent never holds the key.
             </p>
             <div className="hero-reveal mt-8 flex flex-wrap gap-3">
               <Link
-                to="/start"
+                to="/desk"
                 className="inline-flex h-11 items-center gap-2 rounded-[4px] bg-[#18181b] px-5 text-sm font-medium text-white"
               >
-                Get started <ArrowRight className="h-4 w-4" />
+                Try the desk <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                to="/verify"
+                to={'/verify/' + LIVE.featured.paid.tx}
                 className="inline-flex h-11 items-center rounded-[4px] border border-[#18181b]/20 px-5 text-sm font-medium"
               >
-                Verify (no wallet)
+                Verify paid tx
               </Link>
             </div>
-            <dl className="hero-reveal mt-10 grid max-w-lg grid-cols-3 gap-px overflow-hidden rounded-[4px] border border-[#18181b]/10 bg-[#18181b]/10">
-              {[
-                { k: 'Read', v: 'sealed TeeML' },
-                { k: 'Block', v: 'splice / duplicate' },
-                { k: 'Pay', v: 'vault USDC.e' },
-              ].map((b) => (
-                <div key={b.k} className="bg-[#f4f4f5] px-4 py-3">
-                  <dt className="font-display text-sm font-bold tracking-tight">{b.k}</dt>
-                  <dd className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#71717a]">{b.v}</dd>
-                </div>
-              ))}
-            </dl>
           </div>
-          <div className="relative flex min-h-[62dvh] items-center justify-center overflow-hidden bg-[#09090b] px-6 py-16 lg:min-h-[100dvh] lg:py-0">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_55%_42%,rgba(37,99,235,0.2),transparent_62%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_78%)]" />
-            <div className="absolute left-6 top-24 flex items-center gap-2 md:left-10">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2563eb]" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2563eb]" />
-              </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#71717a]">
-                Certified on Aristotle 16661
-              </span>
+          <div className="flex flex-col justify-center gap-3 bg-[#09090b] px-6 py-16 lg:min-h-[100dvh] lg:px-10">
+            <LiveProofCard kind="paid" />
+            <LiveProofCard kind="blocked" />
+          </div>
+        </section>
+
+        <section ref={pan} id="og" className="relative overflow-hidden bg-[#0c0c0e]">
+          <div ref={track} className="flex h-[100dvh] min-w-full items-stretch">
+            <div className="flex h-[100dvh] w-[min(100vw,420px)] shrink-0 flex-col justify-center px-8 md:px-14">
+              <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">Every 0G module that actually runs.</h2>
+              <p className="mt-4 max-w-sm text-[#a1a1aa]">
+                Each panel is live on Aristotle, not a roadmap.
+              </p>
             </div>
-            <HeroDesk className="relative z-10 w-full max-w-[min(88vw,600px)]" />
+            {STACK.map((s, i) => (
+              <a
+                key={s.t}
+                href={s.href}
+                className="flex h-[100dvh] w-[min(100vw,380px)] shrink-0 flex-col justify-center border-l border-white/10 px-8 md:px-12"
+              >
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#71717a]">{String(i + 1).padStart(2, '0')} / 04</p>
+                <h3 className="font-display mt-3 text-3xl font-bold md:text-5xl">{s.t}</h3>
+                <p className="mt-4 max-w-xs text-lg text-[#d4d4d8]">{s.d}</p>
+                <span className="mt-6 font-mono text-xs text-[#93c5fd]">{s.proof} · live 16661</span>
+              </a>
+            ))}
+            <div className="flex h-[100dvh] w-[min(100vw,380px)] shrink-0 flex-col justify-center border-l border-white/10 px-8 md:px-12">
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#71717a]">honest</p>
+              <h3 className="font-display mt-3 text-3xl font-bold md:text-5xl">Not claimed</h3>
+              <p className="mt-4 max-w-xs text-lg text-[#d4d4d8]">
+                0G Pay docs 404. Hardware TEE quote is not on the pay path. Email mailbox is not live. DA is not used.
+              </p>
+            </div>
           </div>
         </section>
 
-        <section id="story" className="story-pin flex min-h-[100dvh] flex-col justify-center px-6 py-24 md:px-12">
-          <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
-            <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
-              {PAIN.map((w, i) => (
-                <span key={`p-${i}`} className="word mr-[0.3em] inline-block">
-                  {w}
-                </span>
-              ))}
-            </h2>
-            <SvgPain />
-          </div>
-        </section>
+        <div className="relative">
+          <section className="stack-card sticky top-0 flex min-h-[100dvh] items-center bg-[#09090b] px-6 py-24 md:px-12">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-6xl">
+                Crypto teams paste vendor addresses into Discord. A fake invoice gets paid. USDC does not come back.
+              </h2>
+            </div>
+          </section>
+          <section className="stack-card sticky top-0 flex min-h-[100dvh] items-center bg-[#111113] px-6 py-24 md:px-12">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-6xl">
+                Invoice in. Fake blocked. USDC paid. The clerk never owns the vault.
+              </h2>
+              <p className="mt-6 max-w-xl text-[#a1a1aa]">
+                Owner wallet creates the vault. The agent gets a scoped session. Capability, not ownership.
+              </p>
+            </div>
+          </section>
+        </div>
 
-        <section className="story-pin flex min-h-[100dvh] flex-col justify-center bg-[#111113] px-6 py-24 md:px-12">
-          <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
-            <SvgEngine />
-            <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
-              {DESK.map((w, i) => (
-                <span key={`d-${i}`} className="word mr-[0.3em] inline-block">
-                  {w}
-                </span>
-              ))}
-            </h2>
-          </div>
-        </section>
-
-        <section className="bg-[#09090b] px-6 py-32 md:px-12 md:py-48">
-          <div className="bento-grid mx-auto grid max-w-6xl grid-cols-1 gap-3 md:grid-cols-6 md:grid-rows-2">
-            <article className="bento-card lift rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-4 md:row-span-2">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#2563eb]">01 · Object</p>
-              <h3 className="font-display mt-3 text-3xl font-bold tracking-tight">The object is an invoice the vault will pay or reject</h3>
-              <p className="mt-4 max-w-md text-[#a1a1aa]">
-                PDF, API, MCP, SDK, or Telegram become one payable. Same engine: sealed read, vendor memory, bands,
-                USDC.e, /verify. Email intake is not live.
+        <section className="bg-[#09090b] px-6 py-28 md:px-12">
+          <div className="mx-auto grid max-w-6xl gap-3 md:grid-cols-6">
+            <article className="rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-3">
+              <h3 className="font-display text-2xl font-bold">The object is a payable</h3>
+              <p className="mt-3 text-[#a1a1aa]">
+                PDF, API, MCP, SDK, or Telegram become one invoice hash. Same engine. Same vault. Same /verify.
               </p>
             </article>
-            <article className="bento-card lift rounded-[4px] border border-white/10 p-8 md:col-span-2">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#71717a]">02 · Owner</p>
-              <h3 className="font-display mt-3 text-xl font-bold">Owner wallet</h3>
-              <p className="mt-3 text-sm text-[#a1a1aa]">Creates the vault, funds it, sets policy, pauses, withdraws. Never a seed phrase.</p>
+            <article className="rounded-[4px] border border-white/10 p-8 md:col-span-3">
+              <h3 className="font-display text-2xl font-bold">Owner vs agent</h3>
+              <p className="mt-3 text-[#a1a1aa]">
+                Owner pauses, withdraws, sets vendors, pays Band 1. Agent ingests, screens, and Band-0 pays. MCP treasury tools return forbidden.
+              </p>
             </article>
-            <article className="bento-card lift rounded-[4px] bg-[#2563eb] p-8 text-white md:col-span-2">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/70">03 · Agent</p>
-              <h3 className="font-display mt-3 text-xl font-bold">Scoped agent</h3>
-              <p className="mt-3 text-sm text-white/80">Ingests, analyzes, auto-pays Band 0. Never withdraws. Never owns the key.</p>
+            <article className="rounded-[4px] bg-[#2563eb] p-8 text-white md:col-span-4">
+              <h3 className="font-display text-2xl font-bold">Splice is not a hash replay</h3>
+              <p className="mt-3 text-white/85">
+                DuplicateInvoice catches the same bytes. Splice is a new PDF with the same invoice number and a bigger total. BURSAR blocks it before Band 0 can move money.
+              </p>
+            </article>
+            <article className="rounded-[4px] border border-white/10 p-8 md:col-span-2">
+              <h3 className="font-display text-2xl font-bold">Attention</h3>
+              <p className="mt-3 text-[#a1a1aa]">Next action is PAY, OPEN, WHY, or PROOF. That is the whole desk.</p>
             </article>
           </div>
         </section>
 
-        <section id="work" className="flow-pin flex min-h-[100dvh] flex-col justify-center px-6 py-20 md:px-12">
-          <div className="mx-auto w-full max-w-5xl">
-            <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">From payable to sealed proof.</h2>
-            <p className="mt-4 max-w-lg text-[#a1a1aa]">One pipeline. Six beats. Nothing left to hope.</p>
-            <div className="mt-12 grid gap-3 md:grid-cols-3 lg:grid-cols-7">
+        <section id="work" className="px-6 py-24 md:px-12">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">Payable to sealed proof.</h2>
+            <p className="mt-4 max-w-lg text-[#a1a1aa]">Seven steps. One vault. Nothing left to hope.</p>
+            <div className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-7">
               {FLOW.map((s, i) => (
-                <div key={s.t} className="flow-step lift rounded-[4px] border border-white/10 bg-[#111113] p-5">
-                  <div className="font-mono text-[10px] uppercase tracking-widest text-[#2563eb]">
-                    {String(i + 1).padStart(2, '0')}
-                  </div>
-                  <h3 className="font-display mt-3 text-lg font-bold">{s.t}</h3>
+                <div key={s.t} className="flow-step rounded-[4px] border border-white/10 bg-[#111113] p-5">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#71717a]">{String(i + 1).padStart(2, '0')}</p>
+                  <h3 className="font-display mt-2 text-lg font-bold">{s.t}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-[#d4d4d8]">{s.d}</p>
                 </div>
               ))}
+            </div>
+            <div className="mt-14 flex justify-center">
+              <HeroDesk className="w-full max-w-[min(88vw,560px)]" />
             </div>
             <p className="mt-8 max-w-2xl text-sm text-[#a1a1aa]">
               processResponse is EIP-191 recovery of the registered TEE signer, not a hardware quote. We do not claim that 0G cannot see your data.
@@ -249,82 +289,46 @@ export function Landing() {
           </div>
         </section>
 
-        <section id="proof" className="px-6 py-28 md:px-12 md:py-36">
-          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
-            <div>
-              <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">Open the chain. Do not trust a screenshot.</h2>
-              <p className="mt-4 max-w-md text-[#a1a1aa]">
-                Paid, USDC.e Transfer, and Go merkle proof must agree. The explorer is the source of truth.
-              </p>
-              <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
-                {LIVE.proofs.map((p) => (
-                  <li key={p.tx} className="proof-row flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-sm">{p.label}</span>
-                    <a className="font-mono text-xs text-[#93c5fd] hover:text-white" href={txUrl(p.tx)}>
-                      {shortHash(p.tx, 8)}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-6 font-mono text-xs text-[#a1a1aa]">
-                Factory{' '}
-                <a className="text-[#93c5fd]" href={addrUrl(LIVE.factory)}>
-                  {LIVE.factory}
-                </a>
-              </p>
-            </div>
-            <SvgVerify />
-          </div>
-        </section>
-
-        <section className="border-t border-white/10 bg-[#111113] px-6 py-24 md:px-12">
+        <section id="proof" className="border-t border-white/10 px-6 py-28 md:px-12">
           <div className="mx-auto max-w-6xl">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-red-300">The attack</p>
-            <h2 className="font-display mt-3 max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-              Same invoice. Amount spliced to $19,000. Payment path dies.
-            </h2>
+            <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">Open the chain. Do not trust a screenshot.</h2>
             <p className="mt-4 max-w-xl text-[#a1a1aa]">
-              Replay of a paid hash reverts DuplicateInvoice on-chain. A new PDF with the same invoice number and a
-              bigger total is blocked as a manipulated duplicate before Band 0 can move USDC.e.
+              Paid, USDC.e Transfer, and Go merkle proof must agree. Storage roots open on storagescan.0g.ai.
             </p>
-            <Link to="/verify" className="mt-8 inline-flex text-sm text-[#93c5fd] underline">
-              Open /verify with no wallet
-            </Link>
-          </div>
-        </section>
-
-        <section id="architecture" className="arch-section border-t border-white/10 bg-[#0c0c0e] px-6 py-28 md:px-12 md:py-36">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="arch-panel font-display max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-              Privacy, memory, policy. One desk.
-            </h2>
-            <p className="arch-panel mt-4 max-w-xl text-[#a1a1aa]">
-              You watch exceptions. The agent does the clerk work. The vault remains yours.
-            </p>
-            <div className="arch-panel mt-14">
-              <SvgArchitecture />
-            </div>
-            <div className="arch-panel mt-10 grid gap-3 md:grid-cols-3">
-              {[
-                { t: 'Private AI', d: 'Direct TeeML vision on the invoice. Not a hardware quote. Not “0G cannot see your data.”' },
-                { t: 'Vendor intelligence', d: 'Wallet, typical amount, last pay, recipient changes, prior blocks — from persisted history.' },
-                { t: 'Policy boundary', d: 'Band 0 auto-pay. Owner review at the edge. Block on duplicate, wrong vendor, malformed proof.' },
-              ].map((c) => (
-                <div key={c.t} className="lift rounded-[4px] border border-white/10 p-6">
-                  <h3 className="font-display text-xl font-bold">{c.t}</h3>
-                  <p className="mt-2 text-sm text-[#a1a1aa]">{c.d}</p>
-                </div>
+            <ul className="mt-10 grid gap-px overflow-hidden rounded-[4px] border border-white/10 bg-white/10 sm:grid-cols-2">
+              {LIVE.proofs.slice(0, 8).map((p) => (
+                <li key={p.tx} className="bg-[#09090b] px-5 py-4">
+                  <p className="text-sm">{p.label}</p>
+                  <a className="mt-1 inline-block font-mono text-xs text-[#93c5fd]" href={txUrl(p.tx)}>
+                    {shortHash(p.tx, 8)}
+                  </a>
+                  {'storageRoot' in p && p.storageRoot ? (
+                    <a className="ml-3 font-mono text-xs text-[#93c5fd]" href={storageUrl(p.storageRoot)}>
+                      root {shortHash(p.storageRoot, 4)}
+                    </a>
+                  ) : null}
+                </li>
               ))}
+            </ul>
+            <div className="mt-8 flex flex-wrap gap-4 text-sm">
+              <Link to="/verify" className="text-[#93c5fd] underline">
+                Public /verify
+              </Link>
+              <Link to="/desk" className="text-[#93c5fd] underline">
+                Side by side desk
+              </Link>
+              <a className="text-[#93c5fd] underline" href={addrUrl(LIVE.factory)}>
+                Factory {shortHash(LIVE.factory, 4)}
+              </a>
             </div>
           </div>
         </section>
 
-        <section className="px-6 py-24 md:px-12 md:py-32">
+        <section className="px-6 py-24 md:px-12">
           <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[4px] border border-white/10 bg-[#111113] px-8 py-16 md:px-16">
-            <div className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-[#2563eb]/20 blur-3xl" />
             <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">Create your workspace.</h2>
             <p className="mt-4 max-w-md text-[#a1a1aa]">
-              Connect the owner wallet. Deploy a vault. Authorize a scoped agent. Receive a payable.
+              Connect the owner wallet. Resume the existing vault if you already have one. Authorize a scoped agent.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <MagneticButton href="/start">

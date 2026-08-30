@@ -154,7 +154,7 @@ export function InvoiceDetail() {
           </div>
           <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">{ex.vendor_name || inv.vendor || 'Payable'}</h1>
           <p className="mt-1 font-mono text-[10px] uppercase text-[var(--fg-muted)]">
-            {inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.rail || 'usdc.e-16661'} · due {inv.dueDate || '—'} · {inv.decision || inv.status} · next {inv.nextAction || '—'}
+            {inv.source || 'pdf'} · {inv.kind || 'invoice'} · {inv.rail || 'usdc.e-16661'} · due {inv.dueDate || '-'} · {inv.decision || inv.status} · next {inv.nextAction || '-'}
           </p>
         </div>
         {canAnalyze ? (

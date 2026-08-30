@@ -59,7 +59,7 @@ export function Inbox() {
     <div>
       <PageHeader
         title="Inbox"
-        body="Give BURSAR a financial task. PDF, API, MCP, SDK, and Telegram all become the same payable. Email intake is coming later."
+        body="Give BURSAR a payable. PDF, API, MCP, SDK, and Telegram use the same engine. Email intake is coming later."
         extra={<AuthorityBadge kind="agent" />}
       />
       <SourceChannels />
@@ -76,7 +76,7 @@ export function Inbox() {
           onFile(e.dataTransfer.files?.[0])
         }}
       >
-        <span className="font-medium">{busy ? 'Received — private analysis queued' : 'Upload this document'}</span>
+        <span className="font-medium">{busy ? 'Received. Private analysis queued.' : 'Upload this document'}</span>
         <span className="mt-2 text-sm text-[var(--fg-muted)]">PDF adapter only. Pipeline is real backend state, not a spinner.</span>
         <input
           type="file"

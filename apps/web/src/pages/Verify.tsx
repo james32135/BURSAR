@@ -1,37 +1,39 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { api } from '@/lib/api'
-import { addrUrl, shortHash, txUrl } from '@/lib/cn'
+import { addrUrl, shortHash, storageUrl, txUrl, usd } from '@/lib/cn'
 import { LIVE } from '@/lib/live'
 import { MagneticButton } from '@/components/MagneticButton'
+import { MarketingHeader } from '@/components/MarketingHeader'
+
+const ID_ROWS = [
+  { label: 'IERC7857', key: 'IERC7857' as const, id: LIVE.production7857.IERC7857 },
+  { label: 'Authorize', key: 'IERC7857Authorize' as const, id: LIVE.production7857.IERC7857Authorize },
+  { label: 'Cloneable', key: 'IERC7857Cloneable' as const, id: LIVE.production7857.IERC7857Cloneable },
+]
 
 export function Verify() {
   const { id } = useParams()
-  const [lookup, setLookup] = useState(id || LIVE.proofs[0].tx)
-  const [active, setActive] = useState(id || LIVE.proofs[0].tx)
+  const fallback = LIVE.featured.paid.tx
+  const [lookup, setLookup] = useState(id || fallback)
+  const [active, setActive] = useState(id || fallback)
   const q = useQuery({ queryKey: ['verify', active], queryFn: () => api.verify(active), enabled: !!active })
   const ident = useQuery({ queryKey: ['identity'], queryFn: api.identity })
   const v = q.data
   const ok = v?.status === 'VERIFIED'
+  const blocked = v?.status === 'BLOCKED'
   const sup = ident.data?.supportsInterface || v?.identity?.supportsInterface || {}
+  const root = v?.storageRoot || v?.invoice?.storageRoot || v?.chainPayment?.storageRoot
 
   return (
     <div className="min-h-[100dvh] bg-[#09090b] text-[#fafafa]">
-      <header className="flex h-16 items-center justify-between border-b border-white/10 px-6">
-        <Link to="/" className="font-display text-lg font-bold">
-          BURSAR
-        </Link>
-        <MagneticButton href="/app" className="h-9 bg-white px-3 text-xs text-[#09090b]">
-          Open console
-        </MagneticButton>
-      </header>
-      <main className="mx-auto max-w-4xl px-6 py-12">
+      <MarketingHeader />
+      <main className="mx-auto max-w-4xl px-6 pb-20 pt-24">
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#71717a]">No wallet required</p>
-        <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">Verify from chain.</h1>
+        <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">Verify from chain and Storage.</h1>
         <p className="mt-3 max-w-xl text-[#a1a1aa]">
-          Paid + USDC.e Transfer + Go merkle proof. ERC-7857 supportsInterface is a live eth_call. processResponse is
-          EIP-191 recovery — not a hardware TEE quote. Settlement is vault USDC.e, not 0G Pay.
+          Paid + USDC.e Transfer + Go merkle proof. ERC-7857 is a live eth_call. processResponse is EIP-191, not a hardware quote. Settlement is vault USDC.e, not 0G Pay.
         </p>
         <form
           className="mt-8 flex flex-wrap gap-2"
@@ -51,7 +53,27 @@ export function Verify() {
           </MagneticButton>
         </form>
         <div className="mt-4 flex flex-wrap gap-2">
-          {LIVE.proofs.map((p) => (
+          <button
+            type="button"
+            className="rounded-[4px] border border-emerald-500/40 px-3 py-1 font-mono text-[10px] uppercase text-emerald-300"
+            onClick={() => {
+              setLookup(LIVE.featured.paid.tx)
+              setActive(LIVE.featured.paid.tx)
+            }}
+          >
+            Paid
+          </button>
+          <button
+            type="button"
+            className="rounded-[4px] border border-red-500/35 px-3 py-1 font-mono text-[10px] uppercase text-red-300"
+            onClick={() => {
+              setLookup(LIVE.featured.blocked.invoice)
+              setActive(LIVE.featured.blocked.invoice)
+            }}
+          >
+            Splice blocked
+          </button>
+          {LIVE.proofs.slice(2, 6).map((p) => (
             <button
               key={p.tx}
               type="button"
@@ -65,48 +87,70 @@ export function Verify() {
             </button>
           ))}
         </div>
+
         <section className="mt-10 rounded-[4px] border border-white/10 p-6">
           <h2 className="font-display text-xl font-bold">Clerk identity (ERC-7857)</h2>
-          <dl className="mt-4 grid grid-cols-[160px_1fr] gap-y-2 text-sm">
-            <dt className="text-[#71717a]">Contract</dt>
-            <dd className="font-mono text-xs">
-              {ident.data?.address ? (
-                <a className="text-[#93c5fd]" href={addrUrl(ident.data.address)}>
-                  {ident.data.address}
-                </a>
-              ) : (
-                'not configured'
-              )}
-            </dd>
-            <dt className="text-[#71717a]">standards-verifiable</dt>
-            <dd>{ident.data?.standardsVerifiable ? 'true' : 'false'}</dd>
-            {Object.entries(sup).map(([k, val]) => (
-              <span key={k} className="contents">
-                <dt className="text-[#71717a]">{k}</dt>
-                <dd className="font-mono text-xs">{String(val)}</dd>
-              </span>
-            ))}
-            <dt className="text-[#71717a]">iTransfer</dt>
-            <dd className="text-[#a1a1aa]">{ident.data?.iTransfer || 'disabled until mainnet TEE attestor'}</dd>
-          </dl>
+          <p className="mt-2 text-sm text-[#a1a1aa]">
+            Production IDs from 0g-agentic-id. Identity, not vendor settlement. iTransfer reverts until a mainnet TEE attestor exists.
+          </p>
+          <p className="mt-3 font-mono text-xs">
+            {ident.data?.address ? (
+              <a className="text-[#93c5fd]" href={addrUrl(ident.data.address)}>
+                {ident.data.address}
+              </a>
+            ) : (
+              'not configured'
+            )}
+          </p>
+          <table className="mt-4 w-full text-left text-sm">
+            <tbody>
+              {ID_ROWS.map((row) => {
+                const shown = Boolean(sup[row.key])
+                return (
+                  <tr key={row.id} className="border-t border-white/10">
+                    <td className="py-2 pr-3">{row.label}</td>
+                    <td className="py-2 font-mono text-xs text-[#a1a1aa]">{row.id}</td>
+                    <td className={`py-2 font-mono text-xs ${shown ? 'text-emerald-300' : 'text-red-300'}`}>{String(shown)}</td>
+                  </tr>
+                )
+              })}
+              <tr className="border-t border-white/10">
+                <td className="py-2 pr-3">Control (must be false)</td>
+                <td className="py-2 font-mono text-xs text-[#a1a1aa]">{LIVE.production7857.controlFalse}</td>
+                <td className="py-2 font-mono text-xs text-red-300">false</td>
+              </tr>
+            </tbody>
+          </table>
         </section>
+
         <section className="mt-8">
           {q.isFetching && <p className="font-mono text-sm">Reconstructing from chain + Storage</p>}
           {v && (
-            <div className={`rounded-[4px] border p-6 ${ok ? 'border-emerald-500/40' : 'border-white/10'}`}>
+            <div className={`rounded-[4px] border p-6 ${ok ? 'border-emerald-500/40' : blocked ? 'border-red-500/35' : 'border-white/10'}`}>
               <p className="font-display text-3xl font-bold">{v.status}</p>
               {v.reason && <p className="mt-2 text-sm text-amber-200">{v.reason}</p>}
+              {blocked && <p className="mt-2 text-sm text-[#a1a1aa]">{LIVE.featured.blocked.note}</p>}
               <dl className="mt-4 grid grid-cols-[160px_1fr] gap-y-2 text-sm">
                 <dt className="text-[#71717a]">Amount</dt>
-                <dd>{v.amount}</dd>
+                <dd>{v.amount ? usd(v.amount) : blocked ? '0.00 USDC.e' : '-'}</dd>
                 <dt className="text-[#71717a]">Vendor</dt>
-                <dd className="break-all font-mono text-xs">{v.vendor}</dd>
+                <dd className="break-all font-mono text-xs">{v.vendor || '-'}</dd>
                 <dt className="text-[#71717a]">Vault</dt>
-                <dd className="break-all font-mono text-xs">{v.vault}</dd>
+                <dd className="break-all font-mono text-xs">{v.vault || LIVE.ownerVault}</dd>
                 <dt className="text-[#71717a]">AI signer</dt>
-                <dd className="break-all font-mono text-xs">{v.recoveredSigner}</dd>
+                <dd className="break-all font-mono text-xs">{v.recoveredSigner || '-'}</dd>
                 <dt className="text-[#71717a]">Go proof</dt>
-                <dd>{v.goProof?.ok ? 'Succeeded to validate the downloaded file' : 'failed or missing'}</dd>
+                <dd>{v.goProof?.ok ? 'Succeeded to validate the downloaded file' : blocked ? 'no pay tx' : 'failed or missing'}</dd>
+                <dt className="text-[#71717a]">Storage root</dt>
+                <dd className="break-all font-mono text-xs">
+                  {root ? (
+                    <a className="text-[#93c5fd]" href={v.storageScan || storageUrl(root)}>
+                      {root}
+                    </a>
+                  ) : (
+                    '-'
+                  )}
+                </dd>
               </dl>
               {v.txHash && (
                 <a className="mt-4 inline-block text-sm text-[#93c5fd] underline" href={txUrl(v.txHash)}>
@@ -116,6 +160,7 @@ export function Verify() {
             </div>
           )}
         </section>
+
         <section className="mt-10">
           <h2 className="font-display text-xl font-bold">Proof deck</h2>
           <ul className="mt-4 divide-y divide-white/10 border-y border-white/10">
