@@ -150,6 +150,26 @@ test('proof of decision never includes extracted body or prompts', () => {
   assert.equal(inf.next, 'OPEN')
 })
 
+test('blocked splice why leads even when stored why is Band 0 first', () => {
+  const d = publicDecisionFromInvoiceRow({
+    invoice_hash: '0xsplice',
+    status: 'blocked',
+    decision: 'blocked',
+    amount_units: '18000000000',
+    decision_why: [
+      'Owner review: amount exceeds Band 0. Session cannot auto-pay. amount 18000000000 exceeds band0 200000000',
+      'Blocked: manipulated duplicate. Same invoice number, different amount. CT-1 was 1000 now 18000000000',
+    ],
+    flags: [
+      { code: 'over-band0', severity: 'review', detail: 'amount 18000000000 exceeds band0 200000000' },
+      { code: 'invoice-splice', detail: 'CT-1 was 1000 now 18000000000' },
+    ],
+  })
+  assert.match(d?.why[0] || '', /manipulated duplicate/i)
+  assert.equal(d?.policy.nextAction, 'WHY')
+  assert.equal(d?.memory[0].code, 'invoice-splice')
+})
+
 test('paid row proof of decision is PROOF with money moved', () => {
   const d = publicDecisionFromInvoiceRow({
     invoice_hash: '0xdef',
@@ -166,17 +186,3 @@ test('paid row proof of decision is PROOF with money moved', () => {
   assert.equal(d?.money.payTx, '0xpay')
 })
 
-test('blocked splice leads why even if stored why started with over-band', () => {
-  const d = publicDecisionFromInvoiceRow({
-    invoice_hash: '0xsplice',
-    status: 'blocked',
-    decision: 'blocked',
-    amount_units: '18000000000',
-    flags: [
-      { code: 'over-band0', severity: 'review', detail: 'amount 18000000000 exceeds band0' },
-      { code: 'invoice-splice', severity: 'block', detail: 'CT-1 was 1000 now 18000000000' },
-    ],
-    decision_why: ['Owner review: amount exceeds Band 0', 'Blocked: manipulated duplicate'],
-  })
-  assert.match(d!.why[0], /manipulated duplicate/i)
-})

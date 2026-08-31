@@ -63,19 +63,13 @@ export function memoryInfluence(flags: Flag[]): { next: 'PAY' | 'OPEN' | 'WHY'; 
 export function publicDecisionFromInvoiceRow(row: Record<string, unknown> | null | undefined) {
   if (!row) return null
   const flags = (parseJsonField(row.flags) as Flag[] | null) || []
-  const storedWhy = parseJsonField(row.decision_why)
   const storedDecision = String(row.decision || '')
   const amountUnits = row.amount_units != null ? BigInt(String(row.amount_units)) : null
   const decision: Decision =
     storedDecision === 'auto-pay' || storedDecision === 'owner-review' || storedDecision === 'blocked'
       ? storedDecision
       : decide(flags, amountUnits, 200_000000n)
-  const regenerated = explainWhy(flags, decision)
-  const why = flags.some((f) => f.severity === 'block')
-    ? regenerated
-    : Array.isArray(storedWhy) && storedWhy.length
-      ? storedWhy.map((line) => String(line))
-      : regenerated
+  const why = explainWhy(flags, decision)
   const nextAction = nextActionFor({
     status: String(row.status || ''),
     decision,
@@ -124,8 +118,25 @@ export function explainWhy(flags: Flag[], decision: Decision): string[] {
     return ['Trusted path: known or allowlisted remittance, unique hash, within Band 0, no anomaly.']
   }
   const ordered = [...flags].sort((a, b) => {
-    const rank = (s: string) => (s === 'block' ? 0 : s === 'review' ? 1 : 2)
-    return rank(a.severity) - rank(b.severity)
+    const rank = (f: Flag) => {
+      if (
+        f.severity === 'block' ||
+        f.code === 'invoice-splice' ||
+        f.code.startsWith('duplicate') ||
+        f.code === 'unsupported-rail' ||
+        f.code === 'vendor-not-allowlisted' ||
+        f.code === 'bad-remittance' ||
+        f.code === 'bad-amount' ||
+        f.code === 'extract-failed'
+      ) {
+        return 0
+      }
+      if (f.severity === 'review' || f.code === 'over-band0' || f.code === 'recipient-changed' || f.code === 'amount-anomaly' || f.code === 'obligation-out-of-range') {
+        return 1
+      }
+      return 2
+    }
+    return rank(a) - rank(b)
   })
   return ordered.map((f) => {
     if (f.code === 'duplicate-paid' || f.code === 'duplicate-seen') return `Blocked: this payable hash was already ${f.code === 'duplicate-paid' ? 'paid' : 'ingested'}.`
