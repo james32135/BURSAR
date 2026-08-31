@@ -31,10 +31,25 @@ jobs:
       BURSAR_OWNER_ECIES_PRIVATE_KEY: "0x1111111111111111111111111111111111111111111111111111111111111111"
       BURSAR_PGLITE_DIR: /tmp/bursar-ci-pglite
       BURSAR_AGENT_ID: "0x67b6FF6808dc7bB2a999809416113816d9f4707B"
+      BURSAR_MCP_TOKEN_SECRET: "ci-isolation-token"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - run: npm install
-      - run: npx tsx --test --test-concurrency=1 test/attestor.test.ts test/identity.test.ts test/payable.test.ts test/rails.test.ts test/obligations.test.ts test/mcp-tools.test.ts test/pay-gates.test.ts test/pay-allowed.test.ts test/http-isolation.test.ts test/telegram-webhook.test.ts
+      - run: npx tsx --test --test-concurrency=1 test/attestor.test.ts test/identity.test.ts test/payable.test.ts test/rails.test.ts test/obligations.test.ts test/mcp-tools.test.ts test/pay-gates.test.ts test/pay-allowed.test.ts test/isolation.test.ts test/http-isolation.test.ts test/telegram-webhook.test.ts
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: npx tsc --noEmit
+      - run: npm run build

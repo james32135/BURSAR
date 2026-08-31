@@ -44,14 +44,14 @@ app.onError((err, c) => {
 function presentInvoice(row: Record<string, unknown>) {
   const extracted = typeof row.extracted === 'string' ? JSON.parse(row.extracted) : row.extracted
   const flags = typeof row.flags === 'string' ? JSON.parse(row.flags) : row.flags
-  const why = typeof row.decision_why === 'string' ? JSON.parse(row.decision_why) : row.decision_why
   const ex = extracted && typeof extracted === 'object' ? (extracted as Record<string, string>) : {}
+  const proof = publicDecisionFromInvoiceRow(row)
   return {
     ...row,
     invoiceHash: row.invoice_hash,
     extracted,
     flags,
-    why: why || [],
+    why: proof?.why || [],
     decision: row.decision,
     source: row.source || 'pdf',
     kind: row.kind || 'invoice',
@@ -64,7 +64,7 @@ function presentInvoice(row: Record<string, unknown>) {
       pay_tx: row.pay_tx,
       flags,
     }),
-    proofOfDecision: publicDecisionFromInvoiceRow(row),
+    proofOfDecision: proof,
   }
 }
 

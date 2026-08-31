@@ -172,7 +172,7 @@ export function Overview() {
                     <StatusChip status={inv.status} />
                   </td>
                   <td className="max-w-[280px] py-3 pr-3 text-xs text-[var(--fg-muted)]">
-                    {Array.isArray(inv.why) && inv.why[0] ? inv.why[0] : flagsOf(inv)[0]?.code || '-'}
+                    {inv.proofOfDecision?.why?.[0] || (Array.isArray(inv.why) && inv.why[0] ? inv.why[0] : flagsOf(inv)[0]?.code || '-')}
                   </td>
                   <td className="py-3 pr-3 font-mono text-[10px]">{inv.dueDate || '-'}</td>
                   <td className="py-3 pr-3">

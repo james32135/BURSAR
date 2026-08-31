@@ -140,7 +140,8 @@ export function InvoiceDetail() {
   } else if (paused) {
     whyText = 'Vault is paused. Session pay will revert. 0 USDC.e moved.'
   }
-  const decisionLines = Array.isArray(inv.why) && inv.why.length ? inv.why : [whyText]
+  const decisionLines =
+    inv.proofOfDecision?.why?.length ? inv.proofOfDecision.why : Array.isArray(inv.why) && inv.why.length ? inv.why : [whyText]
   const mine = (eventsQ.data?.events || []).filter((e) => String(e.invoice_hash) === hash)
 
   return (

@@ -6,7 +6,7 @@ import { acceptPayable } from './ingest.ts'
 import { executeAllowedPay } from './pay.ts'
 import { getWorkspaceById } from './workspace.ts'
 import { detectUnsupportedRail } from './rails.ts'
-import { vendorMemoryFor } from './payable.ts'
+import { publicDecisionFromInvoiceRow, vendorMemoryFor } from './payable.ts'
 
 const CONSOLE = 'https://bursarx.vercel.app'
 const CODE_TTL_MS = 15 * 60 * 1000
@@ -339,7 +339,7 @@ function cmd(text: string) {
 async function showAttention(chatId: number, workspaceId: string) {
   const db = await getDb()
   const q = await db.query(
-    `SELECT invoice_hash, vendor, amount_units, status, decision, decision_why FROM invoices
+    `SELECT invoice_hash, vendor, amount_units, status, decision, decision_why, flags, pay_tx, source, kind FROM invoices
      WHERE workspace_id = $1 AND status <> 'paid' ORDER BY created_at DESC LIMIT 8`,
     [workspaceId]
   )
@@ -357,7 +357,7 @@ async function showAttention(chatId: number, workspaceId: string) {
     `Auto-pay ${auto} · Owner review ${review} · Blocked ${blocked}`,
     '',
     ...q.rows.map((r) => {
-      return `${r.decision || r.status} · ${r.vendor || '-'} · ${usd(r.amount_units)} · ${String(r.invoice_hash).slice(0, 10)} ${whyLine(r.decision_why)}`
+      return `${r.decision || r.status} · ${r.vendor || '-'} · ${usd(r.amount_units)} · ${String(r.invoice_hash).slice(0, 10)} ${publicDecisionFromInvoiceRow(r)?.why?.[0] || whyLine(r.decision_why)}`
     }),
   ]
   await send(chatId, lines.join('\n'), {
@@ -381,7 +381,7 @@ async function inspect(chatId: number, workspaceId: string, hash: string) {
     `Recipient: ${inv.remittance || '-'}`,
     `Invoice: ${inv.invoice_hash}`,
     `Decision: ${inv.decision || inv.status}`,
-    `Risk / why: ${whyLine(inv.decision_why) || '-'}`,
+    `Risk / why: ${publicDecisionFromInvoiceRow(inv)?.why?.[0] || whyLine(inv.decision_why) || '-'}`,
   ]
   const decision = String(inv.decision || '')
   const canPay = (decision === 'auto-pay' || inv.status === 'clean') && inv.status !== 'paid' && inv.status !== 'flagged'

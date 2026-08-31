@@ -19,7 +19,6 @@ function Card({
   const q = useQuery({ queryKey: ['verify', id], queryFn: () => api.verify(id) })
   const v = q.data
   const paid = kind === 'paid'
-  const ok = v?.status === 'VERIFIED'
   return (
     <article className={`rounded-[4px] border p-6 ${paid ? 'border-emerald-500/40 bg-[#111113]' : 'border-red-500/35 bg-[#111113]'}`}>
       <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#71717a]">{title}</p>
@@ -32,11 +31,11 @@ function Card({
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-[#71717a]">Money moved</dt>
-          <dd>{paid && ok ? 'yes' : 'no'}</dd>
+          <dd>{q.isPending ? '…' : v?.didMoneyMove ? 'yes' : 'no'}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-[#71717a]">Go proof</dt>
-          <dd>{v?.goProof?.ok ? 'file validated' : paid ? 'pending' : v?.goProof ? 'file not validated' : 'no pay tx'}</dd>
+          <dd>{q.isPending ? '…' : v?.goProof?.ok ? 'file validated' : v?.goProof ? 'file not validated' : 'no pay tx'}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-[#71717a]">Next</dt>

@@ -135,7 +135,7 @@ export function Review() {
               <span>{inv.vendor || '-'}</span>
               <span>{usd(inv.amount_units)}</span>
               <span className="font-mono text-xs">{flagsOf(inv)[0]?.code || '-'}</span>
-              <span className="text-xs text-[var(--fg-muted)]">{Array.isArray(inv.why) && inv.why[0] ? inv.why[0] : extractedOf(inv).due_date || '-'}</span>
+              <span className="text-xs text-[var(--fg-muted)]">{inv.proofOfDecision?.why?.[0] || (Array.isArray(inv.why) && inv.why[0] ? inv.why[0] : extractedOf(inv).due_date || '-')}</span>
               <span className="font-mono text-xs">{hashOf(inv).slice(0, 12)}...</span>
             </Link>
           </li>

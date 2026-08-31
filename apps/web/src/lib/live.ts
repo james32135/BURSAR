@@ -99,8 +99,10 @@ export const LIVE = {
       invoice: '0x008bc867b8cb11c2685cc27ff01dc0cd160126e4a314b0eb773241d70aab5456',
     },
     {
-      label: 'Owner-workspace Band-0 pay',
-      tx: '0x0290bcb024eeba773d9f97c493e8e6abb0da4191606feec9e8cf0ffff7919f49',
+      label: 'Final-audit Band-0',
+      tx: '0xc8143fcb7db619ba4d67750faa728911433f2335731eb358d241c89123dcf0b1',
+      invoice: '0xa03bf06708737f2882da12f77265216d7887d98b9c3d3d7941dc1ad36743db08',
+      storageRoot: '0x5a14e71a807ef08e1bd96f2399d1539bb25c7c4f85783c19b3ed451e802c2296',
     },
     {
       label: 'Owner Northwind Band-0',
