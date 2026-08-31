@@ -37,4 +37,4 @@ jobs:
         with:
           node-version: "20"
       - run: npm install
-      - run: npx tsx --test --test-concurrency=1 test/attestor.test.ts test/identity.test.ts test/payable.test.ts test/rails.test.ts test/obligations.test.ts test/mcp-tools.test.ts test/pay-gates.test.ts test/pay-allowed.test.ts test/isolation.test.ts test/http-isolation.test.ts test/telegram-webhook.test.ts
+      - run: npx tsx --test --test-concurrency=1 test/attestor.test.ts test/identity.test.ts test/payable.test.ts test/rails.test.ts test/obligations.test.ts test/mcp-tools.test.ts test/pay-gates.test.ts test/pay-allowed.test.ts test/http-isolation.test.ts test/telegram-webhook.test.ts
