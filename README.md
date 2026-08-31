@@ -303,21 +303,21 @@ Host on YouTube or Loom. Max 3 minutes. Also cut a 60 second version.
 
 **60 seconds**
 
-1. Open [bursarx.vercel.app](https://bursarx.vercel.app). Read the two hero cards: Paid and Blocked.
-2. Click Paid. `/verify` shows VERIFIED. Click ChainScan. Click Storage root.
-3. Back. Click Blocked. Status BLOCKED. $0.
-4. Open Telegram `@BURSARxbot` `/help` then `/payments`. Point at the same pay tx.
+1. Open [bursarx.vercel.app](https://bursarx.vercel.app). Read the lifecycle: untrusted payable → private 0G intelligence → memory → policy → bounded money → proof. The two cards: Paid and Blocked.
+2. Click Paid. `/verify` shows VERIFIED and **proof of decision** (received, computed, memory, policy, money, why). Click ChainScan. Click Storage root.
+3. Back. Click Blocked. Status BLOCKED. $0. Memory flag is invoice-splice, not a hash replay.
+4. Open Telegram `@BURSARxbot` `/help` then `/payments`. Same clerk as Web.
 
 **3 minutes (new-user path)**
 
 1. **0:00 Chain first.** ChainScan pay [0xb289dc1f…](https://chainscan.0g.ai/tx/0xb289dc1f51d6974d8872e0b31a80ce1dd4d15aaf05dcc8fd2c8740f5d9ebdf3e). Success. USDC.e Transfer 1000 units vault → vendor.
-2. **0:25 Landing.** Invoice in. Fake blocked. USDC paid. Horizontal 0G stack: Chain, Compute, Storage, Agentic ID, Not claimed.
+2. **0:25 Landing.** Invoice in. Fake blocked. USDC paid. Horizontal 0G stack: Chain, Compute, Storage, ERC-7857, Not claimed. Why each module is necessary.
 3. **0:50 Desk.** [/desk](https://bursarx.vercel.app/desk) side by side. No wallet.
-4. **1:10 Console.** Attention. Upload a Contoso PDF (or open an existing payable). PipelineStrip: Received → Storage verified → Private AI → Decision → Pay / Blocked.
-5. **1:40 Splice.** Open blocked payable. WHY: same invoice number, different amount. PAY returns blocked.
-6. **2:00 Telegram.** `/start`, `/help`, drop PDF or inspect hash, show PAY only on Band 0, show `/payments`.
-7. **2:20 Identity.** `/verify` ERC-7857 table true / control false. iTransfer NoMainnetAttestor.
-8. **2:40 Honest close.** Settlement is vault USDC.e. processResponse is EIP-191. 0G Pay not claimed. Email not live.
+4. **1:10 Get started.** [/start](https://bursarx.vercel.app/start) is the real desk: wallet, resume/bind, session, vendor. Not DEMO.
+5. **1:30 Memory.** `/app/vendors`: recipients, amount bands, prior hashes, obligations. Memory changes PAY / OPEN / WHY. Agent does not own the vault.
+6. **1:50 Splice.** Open blocked payable. WHY: same invoice number, different amount. PAY returns blocked.
+7. **2:10 Telegram + MCP.** `/help`. MCP `explain_decision` / `verify_payment`. Same clerk.
+8. **2:30 Honest close.** Settlement is vault USDC.e. processResponse is EIP-191. 0G Pay not claimed. Email not live. iTransfer NoMainnetAttestor.
 
 Record 1920x1080, cursor visible, no music over explorer URLs. Speak the tx hash once.
 

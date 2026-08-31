@@ -47,13 +47,15 @@ export function Policies() {
       } else if (intent.kind === 'recreate') {
         const rotated = await api.rotateSession()
         const next = { ...(stored || loadWorkspace()) }
-        if (!next?.agentToken) throw new Error('workspace token missing in this browser')
+        if (!next?.id || !next.owner || !next.vault || !next.agentToken) throw new Error('workspace token missing in this browser')
+        const agentAddress = rotated.agentAddress || next.agentAddress
+        if (!agentAddress) throw new Error('session agent address missing')
         saveWorkspace({
           id: next.id,
           owner: next.owner,
           vault: next.vault,
           sessionId: rotated.sessionId,
-          agentAddress: rotated.agentAddress || next.agentAddress,
+          agentAddress,
           agentToken: next.agentToken,
           demo: false,
         })
@@ -61,7 +63,7 @@ export function Policies() {
         const until = BigInt(Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30)
         await ownerWrite(eth, 'createSession', [
           rotated.sessionId as `0x${string}`,
-          (rotated.agentAddress || next.agentAddress) as `0x${string}`,
+          agentAddress as `0x${string}`,
           cap,
           until,
         ])
