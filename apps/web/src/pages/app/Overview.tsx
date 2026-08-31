@@ -81,6 +81,13 @@ export function Overview() {
             </a>
           </div>
           <SourceChannels />
+          <p className="mt-2 max-w-xl text-xs text-[var(--fg-muted)]">
+            Web, API, MCP, SDK, and Telegram are clients of one clerk. Memory at{' '}
+            <Link className="text-[#93c5fd] underline" to="/app/vendors">
+              /app/vendors
+            </Link>{' '}
+            changes PAY / OPEN / WHY. The agent still cannot own the vault.
+          </p>
         </div>
         <span className={`inline-flex rounded-[4px] border px-3 py-1 font-mono text-[10px] uppercase ${vs?.paused ? 'border-red-500/40 text-red-300' : 'border-emerald-500/40 text-emerald-300'}`}>
           {vs?.paused ? 'paused' : 'open'}

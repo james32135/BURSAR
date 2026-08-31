@@ -21,6 +21,7 @@ function chip(label: string, tone: Tone) {
 
 export function sourceTones(integrations?: Health['integrations']): { label: string; tone: Tone }[] {
   return [
+    { label: 'Web', tone: 'live' },
     { label: 'PDF', tone: integrations?.pdf ? 'live' : 'ready' },
     { label: 'API', tone: integrations?.api ? 'live' : 'ready' },
     { label: 'MCP', tone: integrations?.mcp ? 'live' : 'ready' },
@@ -36,6 +37,11 @@ export function SourceChannels({ compact }: { compact?: boolean }) {
   return (
     <div className={compact ? 'flex flex-wrap gap-1.5' : 'mt-4 flex flex-wrap gap-1.5'}>
       {items.map((s) => chip(s.label, s.tone))}
+      {!compact && (
+        <p className="basis-full pt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--fg-muted)]">
+          Same clerk · same vault · same /verify
+        </p>
+      )}
     </div>
   )
 }

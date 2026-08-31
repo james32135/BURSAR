@@ -405,7 +405,8 @@ async function help(chatId: number) {
   await send(
     chatId,
     [
-      'BURSAR Telegram is the mobile desk of the AP clerk that cannot steal.',
+      'BURSAR Telegram is one client of the same AP clerk as Web, API, MCP, and SDK.',
+      'Untrusted payable → private 0G intelligence → memory → policy → bounded money → proof.',
       'Invoice in. Fake blocked. USDC.e paid from the vault the agent does not own.',
       'Taps: PAY, VIEW, IGNORE, APPROVE IN APP.',
       '/start CODE — bind with a one-time Settings code',
@@ -413,7 +414,7 @@ async function help(chatId: number) {
       '/attention or /inbox — what needs you',
       '/review — exceptions',
       '/payments — recent paid hashes',
-      '/vendors — vendor memory',
+      '/vendors — financial memory (recipients, amount bands, prior hashes)',
       '/policy — bands, pause, session remaining (read only)',
       '/help — this list',
       'To submit a payable, send vendor, amount, and a 0x remittance on 0G Aristotle USDC.e.',
@@ -629,7 +630,7 @@ export async function handleTelegramUpdate(update: TgUpdate, opts?: { alreadyDed
         .slice(0, 8)
         .map((v) => {
           const trust = v.trusted ? 'TRUSTED' : v.recipientChanged ? 'RECIPIENT CHANGED' : 'WATCH'
-          return `${v.name}\n${trust} ${v.remittance}\npaid ${v.paymentCount} typical ${usd(v.typicalAmount)} last ${usd(v.lastAmount)}`
+          return `${v.name}\n${trust} ${v.remittance}\npaid ${v.paymentCount} typical ${usd(v.typicalAmount)} last ${usd(v.lastAmount)}${v.frequency ? `\n${v.frequency}` : ''}${v.lastPaidHashes.length ? `\nprior ${v.lastPaidHashes.map((h) => h.slice(0, 10)).join(' ')}` : ''}${v.lastBlockReason ? `\nlast block ${v.lastBlockReason}` : ''}`
         })
         .join('\n\n')
     )

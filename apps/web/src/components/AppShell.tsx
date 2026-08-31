@@ -17,7 +17,7 @@ const PRIMARY = [
 ]
 
 const SECONDARY = [
-  { to: '/app/vendors', label: 'Vendors' },
+  { to: '/app/vendors', label: 'Memory' },
   { to: '/app/policies', label: 'Policy' },
   { to: '/app/agent', label: 'Agent' },
   { to: '/app/settings', label: 'Settings' },
@@ -49,7 +49,7 @@ export function AppShell() {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.end}
+                end={item.to === '/app'}
                 className={({ isActive }) =>
                   cn(
                     'rounded-[4px] px-2.5 py-1.5 text-[13px] text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)]',
@@ -111,7 +111,7 @@ export function AppShell() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.end}
+              end={item.to === '/app'}
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 cn('rounded-[4px] px-3 py-2.5 text-sm text-[var(--fg-muted)]', isActive && 'bg-white text-[#09090b]')

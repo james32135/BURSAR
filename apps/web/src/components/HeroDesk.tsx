@@ -14,11 +14,11 @@ const FACE = 'Outfit, IBM Plex Sans, system-ui, sans-serif'
 const MONO = 'IBM Plex Mono, ui-monospace, monospace'
 
 const STATIONS = [
-  { key: 'invoice', t: 'INVOICE', s: 'artifact in', n: '01', deg: -90, px: 280, py: 72 },
-  { key: 'ai', t: 'TEE', s: 'Direct TeeML', n: '02', deg: -30, px: 488, py: 148 },
-  { key: 'policy', t: 'POLICY', s: 'bands + vendors', n: '03', deg: 30, px: 488, py: 412 },
-  { key: 'vault', t: 'VAULT', s: 'final authority', n: '04', deg: 90, px: 280, py: 514 },
-  { key: 'usdc', t: 'USDC.e', s: 'transfer only', n: '05', deg: 150, px: 72, py: 412 },
+  { key: 'invoice', t: 'PAYABLE', s: 'untrusted in', n: '01', deg: -90, px: 280, py: 72 },
+  { key: 'ai', t: '0G TEE', s: 'private intel', n: '02', deg: -30, px: 488, py: 148 },
+  { key: 'policy', t: 'MEMORY', s: 'history + bands', n: '03', deg: 30, px: 488, py: 412 },
+  { key: 'vault', t: 'POLICY', s: 'cannot steal', n: '04', deg: 90, px: 280, py: 514 },
+  { key: 'usdc', t: 'MONEY', s: 'bounded USDC.e', n: '05', deg: 150, px: 72, py: 412 },
   { key: 'proof', t: 'PROOF', s: 'chain + Go', n: '06', deg: 210, px: 72, py: 148 },
 ] as const
 

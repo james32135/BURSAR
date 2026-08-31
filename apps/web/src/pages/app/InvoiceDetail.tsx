@@ -252,6 +252,29 @@ export function InvoiceDetail() {
       </div>
 
       <div className="mt-6 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h2 className="font-display text-xl font-bold">How memory decided</h2>
+        <p className="mt-2 text-sm text-[var(--fg-muted)]">
+          Memory changes PAY, OPEN, or WHY. It never gives the agent the vault.
+        </p>
+        {inv.proofOfDecision?.memory?.length ? (
+          <ul className="mt-4 space-y-2 text-sm">
+            {inv.proofOfDecision.memory.map((m) => (
+              <li key={m.code} className="border-l-2 border-amber-400 pl-3">
+                <strong>{m.code}</strong> {m.detail}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-[var(--fg-muted)]">
+            No splice, duplicate-number, recipient-change, or amount-anomaly flags. Next action {inv.nextAction || '-'}.
+          </p>
+        )}
+        <p className="mt-3 font-mono text-[11px] text-[var(--fg-muted)]">
+          Policy {inv.proofOfDecision?.policy?.decision || inv.decision || inv.status} → {inv.nextAction || '-'} · {inv.proofOfDecision?.money?.moved ? usd(inv.proofOfDecision.money.amountUnits) : '0 USDC.e moved'}
+        </p>
+      </div>
+
+      <div className="mt-6 rounded-[4px] border border-[var(--border)] bg-[var(--surface)] p-5">
         <h2 className="font-display text-xl font-bold">Policy decision</h2>
         {flags.length ? flags.map((f) => (
           <p key={f.code} className="mt-3 border-l-2 border-red-500 pl-3 text-sm"><strong>{f.code}</strong> {f.detail}</p>

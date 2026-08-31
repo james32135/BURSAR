@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
-import { usd } from '@/lib/cn'
+import { usd, shortHash } from '@/lib/cn'
 import { LIVE } from '@/lib/live'
 import { PageHeader } from '@/components/Product'
 import { AuthorityBadge } from '@/components/Product'
@@ -15,8 +16,8 @@ export function Vendors() {
   return (
     <div>
       <PageHeader
-        title="Vendor memory"
-        body="Trusted recipient, typical range, last pay, frequency, and recipient changes from this workspace history. A new address for a known vendor is OWNER REVIEW, not auto-pay."
+        title="Financial memory"
+        body="Recipient history, amount bands, frequency, previous invoice hashes, recurring obligations, recipient changes, prior decisions, and anomalies. Memory influences PAY / OPEN / WHY. The agent still cannot own the vault."
         extra={<AuthorityBadge kind="owner" />}
       />
       <p className="mt-3 font-mono text-xs text-[var(--fg-muted)]">
@@ -70,6 +71,23 @@ export function Vendors() {
                 Recipient history {v.recipients.join(' → ')}
               </p>
             )}
+            {v.lastPaidHashes && v.lastPaidHashes.length > 0 && (
+              <p className="mt-3 font-mono text-[10px] text-[var(--fg-muted)]">
+                Previous invoice hashes{' '}
+                {v.lastPaidHashes.map((h) => (
+                  <Link key={h} className="mr-2 text-[#93c5fd] underline" to={'/app/inbox/' + h}>
+                    {shortHash(h, 4)}
+                  </Link>
+                ))}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-[var(--fg-muted)]">
+              {v.trusted
+                ? 'Memory says trusted remittance and amount band. Policy still has to allow Band 0.'
+                : v.recipientChanged
+                  ? 'Memory forces OPEN. Owner must approve the new recipient.'
+                  : 'Not enough paid history to treat this remittance as trusted.'}
+            </p>
           </li>
         ))}
       </ul>
@@ -81,11 +99,14 @@ export function Vendors() {
       </p>
       <ul className="mt-4 divide-y divide-[var(--border)] border-t border-[var(--border)]">
         {(obligations.data?.obligations || []).map((o) => (
-          <li key={o.id} className="grid gap-2 py-3 md:grid-cols-4">
+          <li key={o.id} className="grid gap-2 py-3 md:grid-cols-5">
             <span>{o.vendor}</span>
             <span className="break-all font-mono text-xs">{o.remittance}</span>
             <span className="font-mono text-xs uppercase">{o.cadence}</span>
             <span className="text-xs text-[var(--fg-muted)]">{usd(o.expectedMin)}–{usd(o.expectedMax)}</span>
+            <span className="break-all font-mono text-[10px] text-[var(--fg-muted)]">
+              last matched {o.lastMatchedHash ? o.lastMatchedHash.slice(0, 12) : 'none'}
+            </span>
           </li>
         ))}
       </ul>

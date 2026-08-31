@@ -6,6 +6,7 @@ import { LIVE } from '@/lib/live'
 import { MagneticButton } from '@/components/MagneticButton'
 import { PageHeader } from '@/components/Product'
 import { ProofTrail } from '@/components/ProofTrail'
+import { ProofOfDecision } from '@/components/ProofOfDecision'
 import { useState } from 'react'
 import { motion } from 'motion/react'
 
@@ -22,8 +23,8 @@ export function Proof() {
   return (
     <div>
       <PageHeader
-        title="Verify from chain."
-        body="Not a screenshot. /verify reconstructs Paid + USDC.e Transfer + Go merkle proof. ERC-7857 supportsInterface is a live eth_call. The recovered AI signer is processResponse EIP-191 recovery, not a hardware TEE quote."
+        title="Proof of decision on 0G."
+        body="What was received, privately computed, checked in memory, allowed by policy, and whether money moved. VERIFIED only when Paid + USDC.e Transfer + Go merkle proof agree. Prompts and keys stay off this page."
         extra={
           <Link to="/verify" className="font-mono text-xs text-[#93c5fd] underline">
             Public /verify
@@ -122,16 +123,15 @@ export function Proof() {
               </a>
             )}
             <div className="mt-6">
+              <ProofOfDecision v={v} />
               <ProofTrail
                 steps={[
-                  { label: 'Invoice', detail: v.invoiceHash || '-', done: Boolean(v.invoiceHash) },
-                  { label: 'Encrypted Storage', detail: v.storageRoot || '-', done: Boolean(v.storageRoot) },
-                  { label: 'Private AI', detail: v.recoveredSigner || '-', done: Boolean(v.recoveredSigner) },
-                  { label: 'Decision', detail: v.status, done: Boolean(v.status) },
-                  { label: 'Policy', detail: 'on-chain Paid event', done: ok },
-                  { label: 'Payment', detail: v.txHash || '-', href: v.txHash ? txUrl(v.txHash) : undefined, done: Boolean(v.txHash) },
-                  { label: 'ChainScan', href: v.txHash ? txUrl(v.txHash) : undefined, done: Boolean(v.txHash) },
-                  { label: 'Verified', detail: v.goProof?.ok ? 'Go proof ok' : 'Go proof missing', done: ok },
+                  { label: 'Untrusted payable', detail: v.invoiceHash || '-', done: Boolean(v.invoiceHash) },
+                  { label: 'Private 0G intelligence', detail: v.recoveredSigner || v.decision?.computed?.recoveredSigner || '-', done: Boolean(v.recoveredSigner || v.decision?.computed?.recoveredSigner) },
+                  { label: 'Memory', detail: v.decision?.memory?.length ? v.decision.memory.map((m: { code: string }) => m.code).join(', ') : 'no memory flags', done: true },
+                  { label: 'Policy', detail: `${v.decision?.policy?.decision || v.status} → ${v.nextAction || v.decision?.policy?.nextAction || '-'}`, done: Boolean(v.status) },
+                  { label: 'Bounded money', detail: v.txHash || '$0 moved', href: v.txHash ? txUrl(v.txHash) : undefined, done: Boolean(v.didMoneyMove) },
+                  { label: 'Proof', detail: v.goProof?.ok ? 'Go proof ok' : 'Go proof missing', done: ok },
                 ]}
               />
             </div>

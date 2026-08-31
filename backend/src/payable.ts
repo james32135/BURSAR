@@ -20,6 +20,92 @@ export type VendorMemory = {
   recipients: string[]
   recipientChanged: boolean
   frequency: string | null
+  lastPaidHashes: string[]
+}
+
+const MEMORY_CODES = new Set([
+  'invoice-splice',
+  'duplicate-invoice-number',
+  'duplicate-paid',
+  'duplicate-seen',
+  'recipient-changed',
+  'amount-anomaly',
+  'obligation-out-of-range',
+])
+
+function parseJsonField(value: unknown): unknown {
+  if (value == null) return null
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return null
+    }
+  }
+  return value
+}
+
+export function memoryInfluence(flags: Flag[]): { next: 'PAY' | 'OPEN' | 'WHY'; lines: string[] } {
+  const mem = flags.filter((f) => MEMORY_CODES.has(f.code))
+  if (mem.some((f) => f.severity === 'block')) {
+    return { next: 'WHY', lines: mem.map((f) => `${f.code}: ${f.detail}`) }
+  }
+  if (mem.some((f) => f.severity === 'review')) {
+    return { next: 'OPEN', lines: mem.map((f) => `${f.code}: ${f.detail}`) }
+  }
+  return {
+    next: 'PAY',
+    lines: ['No memory flags. Allowlist, unique hash, and Band 0 still decide. Memory does not own the vault.'],
+  }
+}
+
+/** Public proof-of-decision. No prompts, keys, or extracted invoice body. */
+export function publicDecisionFromInvoiceRow(row: Record<string, unknown> | null | undefined) {
+  if (!row) return null
+  const flags = (parseJsonField(row.flags) as Flag[] | null) || []
+  const storedWhy = parseJsonField(row.decision_why)
+  const storedDecision = String(row.decision || '')
+  const amountUnits = row.amount_units != null ? BigInt(String(row.amount_units)) : null
+  const decision: Decision =
+    storedDecision === 'auto-pay' || storedDecision === 'owner-review' || storedDecision === 'blocked'
+      ? storedDecision
+      : decide(flags, amountUnits, 200_000000n)
+  const why =
+    Array.isArray(storedWhy) && storedWhy.length ? storedWhy.map((line) => String(line)) : explainWhy(flags, decision)
+  const nextAction = nextActionFor({
+    status: String(row.status || ''),
+    decision,
+    pay_tx: row.pay_tx,
+    flags,
+  })
+  return {
+    received: {
+      invoiceHash: String(row.invoice_hash || ''),
+      source: String(row.source || 'pdf'),
+      kind: String(row.kind || 'invoice'),
+    },
+    stored: {
+      storageRoot: row.storage_root ? String(row.storage_root) : null,
+      goProofOk: Boolean(row.go_proof_ok),
+    },
+    computed: {
+      recoveredSigner: row.recovered_signer ? String(row.recovered_signer) : null,
+      responseHash: row.response_hash ? String(row.response_hash) : null,
+      attestation: 'EIP-191 processResponse signer recovery (not a hardware quote)',
+    },
+    memory: flags.filter((f) => MEMORY_CODES.has(f.code)).map((f) => ({ code: f.code, detail: f.detail })),
+    policy: {
+      decision: String(row.decision || decision),
+      nextAction,
+      rail: 'usdc.e-16661',
+    },
+    money: {
+      moved: Boolean(row.pay_tx),
+      payTx: row.pay_tx ? String(row.pay_tx) : null,
+      amountUnits: amountUnits != null ? amountUnits.toString() : '0',
+    },
+    why,
+  }
 }
 
 export function decide(flags: Flag[], amountUnits: bigint | null, band0Max: bigint): Decision {
@@ -70,14 +156,14 @@ function frequencyLabel(paidAt: string[]): string | null {
 export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory[]> {
   const db = await getDb()
   const rows = await db.query(
-    `SELECT remittance, vendor, amount_units, status, flags, created_at, pay_tx, updated_at
+    `SELECT invoice_hash, remittance, vendor, amount_units, status, flags, created_at, pay_tx, updated_at
      FROM invoices WHERE workspace_id = $1 AND remittance IS NOT NULL AND remittance <> ''
      ORDER BY created_at ASC`,
     [workspaceId]
   )
   const map = new Map<
     string,
-    VendorMemory & { amounts: bigint[]; paidAt: string[]; remCounts: Map<string, number> }
+    VendorMemory & { amounts: bigint[]; paidAt: string[]; remCounts: Map<string, number>; paidHashes: string[] }
   >()
   for (const row of rows.rows) {
     const rem = String(row.remittance).toLowerCase()
@@ -100,9 +186,11 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
       recipients: [],
       recipientChanged: false,
       frequency: null,
+      lastPaidHashes: [],
       amounts: [],
       paidAt: [],
       remCounts: new Map<string, number>(),
+      paidHashes: [],
     }
     if (row.vendor) cur.name = String(row.vendor)
     if (!cur.firstSeen) cur.firstSeen = String(row.created_at || '')
@@ -116,6 +204,7 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
       cur.lastPaidAt = String(row.updated_at || row.created_at || '')
       cur.amounts.push(amt)
       cur.paidAt.push(String(row.updated_at || row.created_at || ''))
+      if (row.invoice_hash) cur.paidHashes.push(String(row.invoice_hash))
     }
     if (row.status === 'blocked') {
       cur.blockCount += 1
@@ -146,6 +235,7 @@ export async function vendorMemoryFor(workspaceId: string): Promise<VendorMemory
       recipients: v.recipients,
       recipientChanged: v.recipients.length > 1,
       frequency: frequencyLabel(v.paidAt),
+      lastPaidHashes: v.paidHashes.slice(-5),
     }
   })
 }

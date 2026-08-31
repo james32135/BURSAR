@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { screenInvoice } from '../src/screen.ts'
-import { decide, explainWhy, attentionFromRows, nextActionFor, isInvoiceSplice } from '../src/payable.ts'
+import { decide, explainWhy, attentionFromRows, nextActionFor, isInvoiceSplice, publicDecisionFromInvoiceRow, memoryInfluence } from '../src/payable.ts'
 import { invoiceNumberFromPdf, payablePdf } from '../src/artifact.ts'
 
 test('screen blocks extracted BTC rail', () => {
@@ -119,4 +119,49 @@ test('unsupported rail why is explicit', () => {
     'blocked'
   )
   assert.match(why[0], /UNSUPPORTED PAYMENT RAIL/)
+})
+
+test('proof of decision never includes extracted body or prompts', () => {
+  const d = publicDecisionFromInvoiceRow({
+    invoice_hash: '0xabc',
+    source: 'telegram',
+    kind: 'invoice',
+    storage_root: '0x' + '11'.repeat(32),
+    go_proof_ok: true,
+    recovered_signer: '0x8561E0a9dA3C8d6591A2E756a91334f1a3E537e0',
+    response_hash: '0x' + '22'.repeat(32),
+    status: 'blocked',
+    decision: 'blocked',
+    amount_units: '19000000000',
+    flags: [{ code: 'invoice-splice', severity: 'block', detail: 'CT-1 was 1000 now 19000000000' }],
+    extracted: { prompt: 'SECRET_PROMPT', invoice_number: 'CT-1' },
+    pay_tx: null,
+  })
+  assert.ok(d)
+  assert.equal(d.received.source, 'telegram')
+  assert.equal(d.policy.nextAction, 'WHY')
+  assert.equal(d.money.moved, false)
+  assert.equal(d.memory[0].code, 'invoice-splice')
+  const blob = JSON.stringify(d)
+  assert.equal(blob.includes('SECRET_PROMPT'), false)
+  assert.equal(blob.includes('extracted'), false)
+  assert.match(d.why[0], /manipulated duplicate/i)
+  const inf = memoryInfluence([{ code: 'recipient-changed', severity: 'review', detail: 'last 0xa now 0xb' }])
+  assert.equal(inf.next, 'OPEN')
+})
+
+test('paid row proof of decision is PROOF with money moved', () => {
+  const d = publicDecisionFromInvoiceRow({
+    invoice_hash: '0xdef',
+    source: 'pdf',
+    kind: 'invoice',
+    status: 'paid',
+    decision: 'auto-pay',
+    amount_units: '1000',
+    flags: [],
+    pay_tx: '0xpay',
+  })
+  assert.equal(d?.policy.nextAction, 'PROOF')
+  assert.equal(d?.money.moved, true)
+  assert.equal(d?.money.payTx, '0xpay')
 })

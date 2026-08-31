@@ -37,21 +37,21 @@ const TOOLS = [
   { name: 'inspect_invoice', description: 'Fetch payable metadata by sha256 hash.' },
   { name: 'inspect_payable', description: 'Alias of inspect_invoice. Same payable object.' },
   { name: 'get_queue', description: 'List payables in this workspace only.' },
-  { name: 'attention', description: 'What needs attention: auto-pay, owner review, blocked, paid recently.' },
-  { name: 'vendor_memory', description: 'Persisted vendor history for this workspace.' },
+  { name: 'attention', description: 'Same clerk desk as Web and Telegram: PAY / OPEN / WHY / PROOF.' },
+  { name: 'vendor_memory', description: 'Financial memory: recipients, amount bands, frequency, prior invoice hashes, recipient changes. Read only. Does not own the vault.' },
   { name: 'vendors', description: 'Alias of vendor_memory.' },
   { name: 'payments', description: 'Paid payables in this workspace.' },
   { name: 'policy', description: 'Read vault bands, pause, session remaining. Cannot change policy.' },
   { name: 'get_payment_queue', description: 'Alias of get_queue.' },
   { name: 'explain_flags', description: 'Explain screening flags.' },
-  { name: 'explain_decision', description: 'Why auto-pay, owner-review, or blocked.' },
+  { name: 'explain_decision', description: 'Proof of decision without prompts: received, computed, memory, policy, money, why.' },
   { name: 'propose_payment', description: 'Show WHAT/WHO/HOW MUCH without moving money.' },
   { name: 'request_approval', description: 'Same as propose_payment. Does not move money. Human must confirm.' },
   { name: 'execute_allowed_payment', description: 'Band-0 vault USDC.e pay if policy allows.' },
   { name: 'pay_allowed_sequential', description: 'Pay every Band-0 clean payable one session.pay each. No batch opcode.' },
   { name: 'get_payment_status', description: 'Pay tx, status, and amount for a payable in this workspace.' },
   { name: 'get_proof', description: 'Stored proof fields for a payable.' },
-  { name: 'verify_payment', description: 'Chain-derived verification of pay tx or invoice hash.' },
+  { name: 'verify_payment', description: 'Chain-derived proof of decision for a pay tx or invoice hash. No prompts.' },
 ]
 const FORBIDDEN = new Set([
   'setVendor',
@@ -87,7 +87,15 @@ async function callTool(name, args) {
       return { hash: args.hash, status: inv.status, pay_tx: inv.pay_tx, amount_units: inv.amount_units, remittance: inv.remittance }
     }
     if (name === 'explain_decision') {
-      return { hash: args.hash, status: inv.status, decision: inv.decision, why: inv.why, flags: inv.flags }
+      return {
+        hash: args.hash,
+        status: inv.status,
+        decision: inv.decision,
+        why: inv.why,
+        flags: inv.flags,
+        proofOfDecision: inv.proofOfDecision,
+        nextAction: inv.nextAction,
+      }
     }
     return inv
   }
@@ -101,7 +109,8 @@ async function callTool(name, args) {
       what: 'USDC.e transfer from BursarVault to vendor',
       who: inv.remittance,
       howMuch: inv.amount_units,
-      why: inv.extracted,
+      why: inv.why,
+      proofOfDecision: inv.proofOfDecision,
       whichPolicy: 'band0 session cap + vendor allowlist + unique invoice hash',
       sign: false,
       next: 'execute_allowed_payment only if status=clean and amount<=band0',

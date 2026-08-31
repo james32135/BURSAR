@@ -51,13 +51,11 @@ export function invoiceTrail(inv: {
 }): TrailStep[] {
   const hash = inv.invoiceHash || inv.invoice_hash || ''
   return [
-    { label: 'Invoice', detail: hash || '-', done: Boolean(hash) },
-    { label: 'Encrypted Storage', detail: inv.storage_root || 'pending', done: Boolean(inv.storage_root) },
-    { label: 'Private AI', detail: inv.recovered_signer || 'Direct TeeML', done: Boolean(inv.attestation_ok || inv.recovered_signer) },
-    { label: 'Decision', detail: inv.status || '-', done: Boolean(inv.status) },
-    { label: 'Policy', detail: 'BursarVault bands + vendor allowlist', done: true },
-    { label: 'Payment', detail: inv.pay_tx || '$0 moved', href: inv.pay_tx ? txUrl(inv.pay_tx) : undefined, done: Boolean(inv.pay_tx) },
-    { label: 'ChainScan', detail: inv.pay_tx || 'no transfer', href: inv.pay_tx ? txUrl(inv.pay_tx) : undefined, done: Boolean(inv.pay_tx) },
-    { label: 'Verified', detail: inv.go_proof_ok ? 'Go proof on file' : 'open Proof to reconstruct', to: inv.pay_tx ? '/app/proof/' + inv.pay_tx : undefined, done: Boolean(inv.pay_tx && inv.go_proof_ok) },
+    { label: 'Untrusted payable', detail: hash || '-', done: Boolean(hash) },
+    { label: 'Private 0G intelligence', detail: inv.recovered_signer || 'Direct TeeML', done: Boolean(inv.attestation_ok || inv.recovered_signer) },
+    { label: 'Memory', detail: Array.isArray(inv.flags) && (inv.flags as { code?: string }[]).some((f) => f.code) ? 'flags recorded' : 'no memory flags', done: true },
+    { label: 'Policy', detail: inv.status || '-', done: Boolean(inv.status) },
+    { label: 'Bounded money', detail: inv.pay_tx || '$0 moved', href: inv.pay_tx ? txUrl(inv.pay_tx) : undefined, done: Boolean(inv.pay_tx) },
+    { label: 'Proof', detail: inv.go_proof_ok ? 'Go proof on file' : 'open Proof to reconstruct', to: inv.pay_tx ? '/app/proof/' + inv.pay_tx : undefined, done: Boolean(inv.pay_tx && inv.go_proof_ok) },
   ]
 }

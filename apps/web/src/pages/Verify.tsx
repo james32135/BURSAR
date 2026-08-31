@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { api } from '@/lib/api'
 import { addrUrl, shortHash, storageUrl, txUrl, usd } from '@/lib/cn'
 import { LIVE } from '@/lib/live'
+import { ProofOfDecision } from '@/components/ProofOfDecision'
 import { MagneticButton } from '@/components/MagneticButton'
 import { MarketingHeader } from '@/components/MarketingHeader'
 
@@ -31,9 +32,9 @@ export function Verify() {
       <MarketingHeader />
       <main className="mx-auto max-w-4xl px-6 pb-20 pt-24">
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#71717a]">No wallet required</p>
-        <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">Verify from chain and Storage.</h1>
+        <h1 className="font-display mt-2 text-4xl font-bold tracking-tight">Proof of decision on 0G.</h1>
         <p className="mt-3 max-w-xl text-[#a1a1aa]">
-          Paid + USDC.e Transfer + Go merkle proof. ERC-7857 is a live eth_call. processResponse is EIP-191, not a hardware quote. Settlement is vault USDC.e, not 0G Pay.
+          What was received, privately computed, checked in memory, allowed by policy, and whether money moved. VERIFIED only when Paid + USDC.e Transfer + Go merkle proof agree. Prompts and keys stay off this page.
         </p>
         <form
           className="mt-8 flex flex-wrap gap-2"
@@ -140,7 +141,7 @@ export function Verify() {
                 <dt className="text-[#71717a]">AI signer</dt>
                 <dd className="break-all font-mono text-xs">{v.recoveredSigner || '-'}</dd>
                 <dt className="text-[#71717a]">Go proof</dt>
-                <dd>{v.goProof?.ok ? 'Succeeded to validate the downloaded file' : blocked ? 'no pay tx' : 'failed or missing'}</dd>
+                <dd>{v.goProof?.ok ? 'Succeeded to validate the downloaded file' : blocked ? (v.goProof ? 'file not validated on this lookup' : 'no pay tx; storage root still shown when registered') : 'failed or missing'}</dd>
                 <dt className="text-[#71717a]">Storage root</dt>
                 <dd className="break-all font-mono text-xs">
                   {root ? (
@@ -157,6 +158,7 @@ export function Verify() {
                   Open ChainScan {shortHash(v.txHash, 8)}
                 </a>
               )}
+              <ProofOfDecision v={v} />
             </div>
           )}
         </section>

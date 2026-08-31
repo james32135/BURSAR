@@ -45,10 +45,10 @@ export function AgentMcp() {
       <MarketingHeader />
       <main className="mx-auto max-w-4xl px-6 pb-20 pt-24">
         <h1 className="font-display max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
-          Give your existing agent access to BURSAR without giving it the treasury.
+          The same clerk, without giving it the treasury.
         </h1>
         <p className="mt-4 max-w-xl text-[#a1a1aa]">
-          MCP and @bursar/sdk call the same scoped API. setVendor, withdraw, setPaused, and ownerPay return forbidden.
+          MCP and @bursar/sdk are clients of the Web and Telegram desk. Same payable engine. Same financial memory. setVendor, withdraw, setPaused, and ownerPay return forbidden.
         </p>
         <h2 className="font-display mt-12 text-xl font-bold">MCP</h2>
         <pre className="mt-3 overflow-auto rounded-[4px] border border-white/10 bg-[#111113] p-4 font-mono text-xs text-[#a1a1aa]">{MCP}</pre>

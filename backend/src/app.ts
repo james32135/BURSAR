@@ -5,7 +5,7 @@ import { config } from './config.ts'
 import { getDb, recordEvent } from './db.ts'
 import { payablePdf } from './artifact.ts'
 import { analyzeStoredPayable, acceptPayable } from './ingest.ts'
-import { attentionFromRows, nextActionFor, vendorMemoryFor } from './payable.ts'
+import { attentionFromRows, nextActionFor, publicDecisionFromInvoiceRow, vendorMemoryFor } from './payable.ts'
 import { listObligations } from './obligations.ts'
 import { detectUnsupportedRail, normalizeKind, SUPPORTED_RAIL } from './rails.ts'
 import { handleTelegramUpdate, issueTelegramBindCode, telegramStatus, unbindTelegram } from './telegram.ts'
@@ -64,6 +64,7 @@ function presentInvoice(row: Record<string, unknown>) {
       pay_tx: row.pay_tx,
       flags,
     }),
+    proofOfDecision: publicDecisionFromInvoiceRow(row),
   }
 }
 
@@ -116,7 +117,7 @@ app.get('/health', async (c) => {
     usdc: config.usdc,
     agentId: config.agentId || null,
     identity: await probeAgentId(rpc, config.agentId),
-    product: 'AP clerk that cannot steal',
+    product: 'Untrusted payable. Private 0G intelligence. Memory. Policy. Bounded money. Proof.',
     multiTenant: true,
     demoLabeled: true,
     privacy:
@@ -154,7 +155,8 @@ app.get('/product', async (c) => {
   const remittanceAllowed = await vendorAllowed(ctx, remittance)
   return c.json({
     name: 'BURSAR',
-    promise: 'Invoice in. Fake blocked. USDC paid. The AP clerk that cannot steal.',
+    promise:
+      'Untrusted payable. Private 0G intelligence. Memory. Policy. Bounded money. Proof. The AP clerk that cannot steal.',
     chainId: config.chainId,
     factory: config.factory || null,
     agentId: config.agentId || null,

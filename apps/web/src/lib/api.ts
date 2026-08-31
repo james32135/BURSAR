@@ -27,6 +27,15 @@ export type Invoice = {
   dueDate?: string | null
   rail?: string | null
   nextAction?: 'PAY' | 'OPEN' | 'WHY' | 'PROOF' | 'WAIT'
+  proofOfDecision?: {
+    received?: { invoiceHash?: string; source?: string; kind?: string }
+    stored?: { storageRoot?: string | null; goProofOk?: boolean }
+    computed?: { recoveredSigner?: string | null; responseHash?: string | null; attestation?: string }
+    memory?: { code: string; detail: string }[]
+    policy?: { decision?: string; nextAction?: string; rail?: string }
+    money?: { moved?: boolean; payTx?: string | null; amountUnits?: string }
+    why?: string[]
+  } | null
 }
 
 export type Health = {
@@ -131,6 +140,7 @@ export const api = {
       recipients?: string[]
       recipientChanged?: boolean
       frequency?: string | null
+      lastPaidHashes?: string[]
     }>
   }>,
   obligations: () =>

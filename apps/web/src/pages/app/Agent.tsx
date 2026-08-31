@@ -15,9 +15,9 @@ export function AgentPage() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-bold tracking-tight">Capability, not ownership.</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight">One clerk. Five clients.</h1>
           <p className="mt-3 max-w-xl text-[var(--fg-muted)]">
-            The clerk is an ERC-7857 iNFT bound to this vault session. It can ingest and Band-0 pay. It cannot withdraw, add vendors, or hold the owner key.
+            Web, API, MCP, SDK, and Telegram talk to the same ERC-7857 clerk. It can ingest, remember, and Band-0 pay. It cannot withdraw, add vendors, or hold the owner key.
           </p>
         </div>
         <AuthorityBadge kind="agent" />
@@ -49,7 +49,7 @@ export function AgentPage() {
             <li>Analyze invoices with Direct TeeML</li>
             <li>Request owner approval</li>
             <li>Execute allowed Band 0 payments</li>
-            <li>Read vendor memory</li>
+            <li>Read financial memory (vendors, obligations, prior hashes)</li>
             <li>Verify payments on 0G</li>
           </ul>
         </div>

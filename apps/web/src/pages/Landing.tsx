@@ -19,38 +19,37 @@ gsap.registerPlugin(ScrollTrigger)
 const STACK = [
   {
     t: '0G Chain',
-    d: 'Aristotle 16661. Isolated BursarVault. Band 0 session pay. DuplicateInvoice revert.',
+    d: 'Policy, isolated BursarVault, Band 0 session pay, DuplicateInvoice revert, immutable Paid evidence. Without chain, money is not settled on 0G.',
     href: addrUrl(LIVE.ownerVault),
     proof: shortHash(LIVE.ownerVault, 4),
   },
   {
     t: '0G Compute',
-    d: `Direct TeeML ${LIVE.model}. processResponse recovers signer ${shortHash(LIVE.teeSigner, 4)} via EIP-191.`,
+    d: `Private invoice reasoning. Direct TeeML ${LIVE.model}. processResponse recovers signer ${shortHash(LIVE.teeSigner, 4)} via EIP-191. Prompts never leave the clerk.`,
     href: LIVE.compute,
     proof: LIVE.model,
   },
   {
     t: '0G Storage',
-    d: 'Encrypted invoice bytes. Go client must print Succeeded to validate the downloaded file.',
+    d: 'Encrypted source artifact plus verifiable Merkle evidence. Go client must print Succeeded or /verify is not VERIFIED.',
     href: storageUrl(LIVE.featured.paid.storageRoot),
     proof: shortHash(LIVE.featured.paid.storageRoot, 4),
   },
   {
-    t: 'Agentic ID',
-    d: 'Production ERC-7857 clerk iNFT. Identity only. Settlement is vault USDC.e.',
+    t: 'ERC-7857',
+    d: 'On-chain clerk identity. Production IERC7857 0x2afbede9. Identity only. Settlement is vault USDC.e.',
     href: addrUrl(LIVE.agentId),
     proof: shortHash(LIVE.agentId, 4),
   },
 ]
 
 const FLOW = [
-  { t: 'Source', d: 'PDF, API, MCP, SDK, or Telegram. Email is not live.' },
-  { t: 'Store', d: 'Encrypt. Upload to 0G Storage. Keep the root hash.' },
-  { t: 'Prove', d: 'Go merkle download. File must validate.' },
-  { t: 'Read', d: 'Direct TeeML vision. Recover the registered TEE signer.' },
-  { t: 'Screen', d: 'Vendor memory, bands, duplicate hash, invoice splice.' },
-  { t: 'Pay', d: 'Session transfer from this vault only, or a hard block.' },
-  { t: 'Verify', d: 'Public /verify. Paid + Transfer + Go proof must agree.' },
+  { t: 'Untrusted payable', d: 'PDF, API, MCP, SDK, or Telegram. Same hash. Email is not live.' },
+  { t: 'Private 0G intelligence', d: 'Encrypted Storage. Go merkle. Direct TeeML vision. EIP-191 signer recovery.' },
+  { t: 'Memory', d: 'Recipient history, amount bands, frequency, prior hashes, obligations, recipient changes.' },
+  { t: 'Policy', d: 'Band 0 session. Band 1 owner. Duplicate and splice block. Agent cannot own the vault.' },
+  { t: 'Bounded money', d: 'BursarVault USDC.e transfer or $0. Session cap $200. Fail closed.' },
+  { t: 'Proof', d: 'Public /verify. Paid + Transfer + Go proof. Clerk ERC-7857. Prompts stay private.' },
 ]
 
 function LiveProofCard({ kind }: { kind: 'paid' | 'blocked' }) {
@@ -69,7 +68,7 @@ function LiveProofCard({ kind }: { kind: 'paid' | 'blocked' }) {
         {paid ? '0.001 USDC.e left the vault' : 'Same invoice. Amount spliced. $0.'}
       </p>
       <p className="mt-2 font-mono text-xs text-[#a1a1aa]">{shortHash(id, 8)}</p>
-      <p className="mt-3 text-sm text-[#a1a1aa]">{featured.note}</p>
+      <p className="mt-3 text-sm text-[#a1a1aa]">{v?.decision?.why?.[0] || featured.note}</p>
       <div className="mt-4 flex flex-wrap gap-3 text-xs">
         <Link className="text-[#93c5fd] underline" to={'/verify/' + id}>
           Open /verify
@@ -167,8 +166,11 @@ export function Landing() {
             <h1 className="hero-reveal font-display mt-3 max-w-xl text-[clamp(2.2rem,4vw,3.6rem)] font-extrabold leading-[1.02] tracking-[-0.04em]">
               Invoice in. Fake blocked. USDC paid.
             </h1>
+            <p className="hero-reveal mt-3 max-w-md font-mono text-[11px] uppercase leading-relaxed tracking-[0.12em] text-[#52525b]">
+              Untrusted payable → Private 0G intelligence → Memory → Policy → Bounded money → Proof
+            </p>
             <p className="hero-reveal mt-5 max-w-md text-base leading-relaxed text-[#52525b]">
-              Direct TeeML reads invoices. The vault pays USDC.e. Spliced bills stop. The agent never holds the key.
+              0G is the trust substrate. Compute reads privately. Storage keeps the artifact. Chain settles policy and money. ERC-7857 names the clerk. The agent never holds the key.
             </p>
             <a
               href={LIVE.telegram}
@@ -212,9 +214,9 @@ export function Landing() {
         <section ref={pan} id="og" className="relative overflow-hidden bg-[#0c0c0e]">
           <div ref={track} className="flex h-[100dvh] min-w-full items-stretch">
             <div className="flex h-[100dvh] w-[min(100vw,420px)] shrink-0 flex-col justify-center px-8 md:px-14">
-              <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">Every 0G module that actually runs.</h2>
+              <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">0G is the trust substrate, not a logo.</h2>
               <p className="mt-4 max-w-sm text-[#a1a1aa]">
-                Each panel is live on Aristotle, not a roadmap.
+                Each panel is live on Aristotle. Every module is necessary for the proof of decision.
               </p>
             </div>
             {STACK.map((s, i) => (
@@ -250,10 +252,10 @@ export function Landing() {
           <section className="stack-card sticky top-0 flex min-h-[100dvh] items-center bg-[#111113] px-6 py-24 md:px-12">
             <div className="mx-auto max-w-5xl">
               <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight md:text-6xl">
-                Invoice in. Fake blocked. USDC paid. The clerk never owns the vault.
+                Memory remembers. Policy decides. The vault pays. The agent never owns it.
               </h2>
               <p className="mt-6 max-w-xl text-[#a1a1aa]">
-                Owner wallet creates the vault. The agent gets a scoped session. Capability, not ownership.
+                Recipient history, amount bands, prior invoice hashes, and recurring obligations change the next action. They never become treasury ownership.
               </p>
             </div>
           </section>
@@ -262,9 +264,9 @@ export function Landing() {
         <section className="bg-[#09090b] px-6 py-28 md:px-12">
           <div className="mx-auto grid max-w-6xl gap-3 md:grid-cols-6">
             <article className="rounded-[4px] border border-white/10 bg-[#111113] p-8 md:col-span-3">
-              <h3 className="font-display text-2xl font-bold">The object is a payable</h3>
+              <h3 className="font-display text-2xl font-bold">One clerk. Five clients.</h3>
               <p className="mt-3 text-[#a1a1aa]">
-                PDF, API, MCP, SDK, or Telegram become one invoice hash. Same engine. Same vault. Same /verify.
+                Web, API, MCP, SDK, and Telegram are clients of the same payable engine. Same vault. Same memory. Same /verify. None of them own the treasury.
               </p>
             </article>
             <article className="rounded-[4px] border border-white/10 p-8 md:col-span-3">
@@ -288,9 +290,9 @@ export function Landing() {
 
         <section id="work" className="px-6 py-24 md:px-12">
           <div className="mx-auto max-w-6xl">
-            <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">Payable to sealed proof.</h2>
-            <p className="mt-4 max-w-lg text-[#a1a1aa]">Seven steps. One vault. Nothing left to hope.</p>
-            <div className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-7">
+            <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">Untrusted payable to sealed proof.</h2>
+            <p className="mt-4 max-w-lg text-[#a1a1aa]">Six stages. One vault. Memory informs PAY / OPEN / WHY. The agent still cannot own the money.</p>
+            <div className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-6">
               {FLOW.map((s, i) => (
                 <div key={s.t} className="flow-step rounded-[4px] border border-white/10 bg-[#111113] p-5">
                   <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#71717a]">{String(i + 1).padStart(2, '0')}</p>

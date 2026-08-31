@@ -28,16 +28,14 @@ Crypto teams paste vendor addresses into Discord. A fake invoice gets paid. USDC
 
 BURSAR is the AP clerk that cannot steal:
 
-1. A payable arrives (PDF, API, MCP, SDK, or Telegram).
-2. Bytes are encrypted and stored on **0G Storage**.
-3. The Go client downloads and **validates the merkle proof**.
-4. **Direct TeeML** (`0gm-1.0-35b-a3b`) reads the invoice.
-5. `processResponse` recovers the registered TEE signer via **EIP-191** (`0x8561E0a9…`).
-6. Vendor memory + bands + duplicate hash + invoice-splice decide PAY / OPEN / WHY.
-7. **BursarVault** moves USDC.e, or the path dies with **$0 moved**.
-8. Anyone opens `/verify`. VERIFIED only when **Paid + USDC.e Transfer + Go proof** agree.
+1. An **untrusted payable** arrives (PDF, API, MCP, SDK, or Telegram). Email is not live.
+2. **Private 0G intelligence**: encrypted **0G Storage**, Go merkle validation, Direct TeeML (`0gm-1.0-35b-a3b`), EIP-191 signer recovery (`0x8561E0a9…`). Prompts stay private.
+3. **Financial memory**: recipient history, amount bands, frequency, previous invoice hashes, recurring obligations, recipient changes, prior decisions, anomalies.
+4. **Policy**: Band 0 session, Band 1 owner, duplicate hash, invoice-splice. Memory changes PAY / OPEN / WHY. The agent still cannot own the vault.
+5. **Bounded money**: **BursarVault** USDC.e transfer, or **$0 moved**.
+6. **Proof of decision** on `/verify`: what was received, privately computed, checked in memory, allowed by policy, whether money moved, and why. VERIFIED only when **Paid + USDC.e Transfer + Go proof** agree.
 
-Email intake is not live. Settlement is **not** 0G Pay, Payment Layer, or Agentic ID. Agentic ID is clerk identity only.
+Email intake is not live. Settlement is **not** 0G Pay, Payment Layer, or Agentic ID. Agentic ID is clerk identity only. Web, API, MCP, SDK, and Telegram are clients of the same clerk.
 
 ---
 
@@ -45,21 +43,17 @@ Email intake is not live. Settlement is **not** 0G Pay, Payment Layer, or Agenti
 
 ```mermaid
 flowchart LR
-  src[PDF_API_MCP_SDK_Telegram]
-  store[Encrypt_0G_Storage]
-  go[Go_merkle_proof]
-  ai[Direct_TeeML_vision]
-  mem[Vendor_memory]
-  pol[Band0_Band1_policy]
-  vault[BursarVault]
-  pay[USDC_e_transfer]
-  block[Hard_block]
-  verify[Public_verify]
+  src[Untrusted_payable]
+  intel[Private_0G_intelligence]
+  mem[Financial_memory]
+  pol[Policy]
+  money[Bounded_money]
+  proof[Proof_of_decision]
 
-  src --> store --> go --> ai --> mem --> pol
-  pol -->|Band0_ok| vault --> pay --> verify
-  pol -->|splice_or_duplicate| block
-  block --> verify
+  src --> intel --> mem --> pol
+  pol -->|PAY_Band0| money --> proof
+  pol -->|OPEN_owner| money
+  pol -->|WHY_splice_or_duplicate| proof
 ```
 
 Attention is the desk. Next action is only **PAY**, **OPEN**, **WHY**, or **PROOF**.
@@ -90,22 +84,23 @@ flowchart TB
     root[rootHash]
     goProof[Go_validate_file]
   end
-  invoice[Invoice_PDF] --> storeEnc[AES_upload]
+  invoice[Untrusted_payable] --> storeEnc[AES_upload]
   storeEnc --> root
   root --> goProof
   goProof --> teeml
   teeml --> signer
-  signer --> vault
+  signer --> mem[Financial_memory]
+  mem --> vault
   vault --> usdc
   agentNft -. identity_only .-> vault
 ```
 
 | Module | Role in BURSAR | Proof | Status |
 | --- | --- | --- | --- |
-| **0G Chain** | Factory, isolated vault, Paid event, USDC.e `transfer` | [Owner vault](https://chainscan.0g.ai/address/0x8d9229d70Bef34D2C573ecf45dc984eA0a07c3De) | Live 16661 |
-| **0G Compute** | Direct TeeML vision on the invoice | Model `0gm-1.0-35b-a3b`, provider [`0x4870CbC4…`](https://chainscan.0g.ai/address/0x4870CbC4D07d6Ac2EE5aA865588e5985FE77a4E9) | Live Direct ledger |
-| **0G Storage** | Encrypted invoice + Go merkle download | Wave 3 root [0x5658ab9c…](https://storagescan.0g.ai/?root=0x5658ab9c60f2ff2cb7d2b00abafa6dca3a2bd95ad0ff97959fd88d1d6d944dff) | Live |
-| **Agentic ID ERC-7857** | Clerk iNFT. Production IDs `0x2afbede9` / `0xdf597d99` / `0x74f8628b` | [BursarAgentID](https://chainscan.0g.ai/address/0x67b6FF6808dc7bB2a999809416113816d9f4707B) | Live. Identity, not settlement |
+| **0G Chain** | Policy, isolated vault, Paid event, USDC.e settlement, immutable evidence | [Owner vault](https://chainscan.0g.ai/address/0x8d9229d70Bef34D2C573ecf45dc984eA0a07c3De) | Live 16661 |
+| **0G Compute** | Private invoice reasoning (Direct TeeML vision) | Model `0gm-1.0-35b-a3b`, provider [`0x4870CbC4…`](https://chainscan.0g.ai/address/0x4870CbC4D07d6Ac2EE5aA865588e5985FE77a4E9) | Live Direct ledger |
+| **0G Storage** | Encrypted source artifact + verifiable Merkle download | Wave 3 root [0x5658ab9c…](https://storagescan.0g.ai/?root=0x5658ab9c60f2ff2cb7d2b00abafa6dca3a2bd95ad0ff97959fd88d1d6d944dff) | Live |
+| **Agentic ID ERC-7857** | On-chain clerk identity. Production IDs `0x2afbede9` / `0xdf597d99` / `0x74f8628b` | [BursarAgentID](https://chainscan.0g.ai/address/0x67b6FF6808dc7bB2a999809416113816d9f4707B) | Live. Identity, not settlement |
 | **0G Pay** | Vendor rail | docs 404 | **Not claimed** |
 | **0G DA** | Receipt layer | unused | **Not claimed** |
 | **Hardware TEE quote** | dstack / verifyService | not on payment hot path | **Not claimed** |
@@ -217,11 +212,13 @@ Control id `0xdeadbeef` is false. `/verify` shows this table with no wallet.
 ## What's new this Wave
 
 - Attention home. Next action PAY / OPEN / WHY / PROOF.
+- Financial memory: recipient history, amount bands, frequency, prior invoice hashes, obligations, recipient changes, splice. Memory changes the next action. It does not own the vault.
+- Proof of decision on `/verify`, `/desk`, and `/app/proof`: received, privately computed, memory/policy, money, why. Prompts stay off the page.
+- One clerk across Web, API, MCP, SDK, Telegram. Same payable engine. Same `/verify`.
 - Production ERC-7857 BursarAgentID on 16661.
 - Invoice-splice block (same number, different amount) before Band 0.
 - Public `/verify` + `/desk` with live Paid vs Block chips.
 - GitHub Actions: `forge test` + backend unit tests.
-- Telegram `/help` is the mobile clerk.
 
 ---
 
@@ -291,8 +288,8 @@ curl -s https://bursar-api.onrender.com/verify/0xb3f63638b970cfbeadadd39d44ec1ad
 | --- | --- |
 | `/health` | `chainId` 16661, `vault` owner vault, telegram true, email false, settlement vault USDC.e |
 | `/identity` | `supportsInterface.IERC7857` true, control id false |
-| `/verify/0xb289dc1f…` | `status` VERIFIED, `didMoneyMove` true, `goProof.ok` true, storage root `0x5658ab9c…` |
-| `/verify/0xb3f63638…` | `status` BLOCKED, 0 USDC.e |
+| `/verify/0xb289dc1f…` | `status` VERIFIED, `didMoneyMove` true, `goProof.ok` true, storage root `0x5658ab9c…`, `decision.money.moved` true |
+| `/verify/0xb3f63638…` | `status` BLOCKED, 0 USDC.e, `decision.memory` includes `invoice-splice` when the clerk row exists, `didMoneyMove` false |
 
 Then open the same hashes on [ChainScan](https://chainscan.0g.ai) and [StorageScan](https://storagescan.0g.ai).
 

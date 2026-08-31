@@ -5,6 +5,7 @@ import { LIVE } from '@/lib/live'
 import { addrUrl, shortHash, storageUrl, txUrl, usd } from '@/lib/cn'
 import { MarketingHeader } from '@/components/MarketingHeader'
 import { PipelineStrip } from '@/components/PipelineStrip'
+import { ProofOfDecision } from '@/components/ProofOfDecision'
 
 function Card({
   title,
@@ -23,7 +24,7 @@ function Card({
     <article className={`rounded-[4px] border p-6 ${paid ? 'border-emerald-500/40 bg-[#111113]' : 'border-red-500/35 bg-[#111113]'}`}>
       <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#71717a]">{title}</p>
       <p className="font-display mt-2 text-3xl font-bold">{q.isFetching ? '…' : v?.status || (paid ? 'VERIFIED' : 'BLOCKED')}</p>
-      <p className="mt-2 text-sm text-[#a1a1aa]">{paid ? LIVE.featured.paid.note : LIVE.featured.blocked.note}</p>
+      <p className="mt-2 text-sm text-[#a1a1aa]">{v?.decision?.why?.[0] || (paid ? LIVE.featured.paid.note : LIVE.featured.blocked.note)}</p>
       <dl className="mt-5 grid gap-y-2 text-sm">
         <div className="flex justify-between gap-3">
           <dt className="text-[#71717a]">USDC.e</dt>
@@ -35,7 +36,11 @@ function Card({
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-[#71717a]">Go proof</dt>
-          <dd>{v?.goProof?.ok ? 'file validated' : paid ? 'pending' : 'no pay tx'}</dd>
+          <dd>{v?.goProof?.ok ? 'file validated' : paid ? 'pending' : v?.goProof ? 'file not validated' : 'no pay tx'}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-[#71717a]">Next</dt>
+          <dd className="font-mono text-[11px] uppercase">{v?.nextAction || v?.decision?.policy?.nextAction || '-'}</dd>
         </div>
       </dl>
       <div className="mt-5 flex flex-wrap gap-3 text-xs">
@@ -52,6 +57,7 @@ function Card({
           Storage root
         </a>
       </div>
+      {v && <ProofOfDecision v={v} compact />}
     </article>
   )
 }
@@ -63,10 +69,10 @@ export function Desk() {
       <main className="mx-auto max-w-6xl px-6 pb-24 pt-24">
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#71717a]">90 second desk. No wallet.</p>
         <h1 className="font-display mt-2 max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-          One payable paid. One splice blocked.
+          One payable paid. One splice blocked. Both proved on 0G.
         </h1>
         <p className="mt-4 max-w-xl text-[#a1a1aa]">
-          Same invoice number. Different amount. The vault paid the real bill and refused the fake. Reconstruct both from chain and 0G Storage.
+          Untrusted payable → private 0G intelligence → memory → policy → bounded money → proof. Reconstruct both from chain and Storage. No wallet.
         </p>
         <div className="mt-10 grid gap-4 lg:grid-cols-2">
           <Card title="Allow" id={LIVE.featured.paid.tx} kind="paid" />
@@ -92,10 +98,10 @@ export function Desk() {
         </section>
         <section className="mt-12 grid gap-3 md:grid-cols-4">
           {[
-            { t: 'Chain 16661', d: 'BursarVault USDC.e transfer. Paid event.', href: addrUrl(LIVE.ownerVault) },
-            { t: 'Compute', d: `Direct ${LIVE.model}. EIP-191 signer recovery.`, href: LIVE.compute },
-            { t: 'Storage', d: 'Encrypted invoice + Go proof.', href: storageUrl(LIVE.featured.paid.storageRoot) },
-            { t: 'Agentic ID', d: 'Production ERC-7857 clerk identity.', href: addrUrl(LIVE.agentId) },
+            { t: '0G Chain', d: 'Policy, vault, USDC.e settlement, immutable Paid evidence.', href: addrUrl(LIVE.ownerVault) },
+            { t: '0G Compute', d: `Private invoice reasoning. Direct ${LIVE.model}. EIP-191.`, href: LIVE.compute },
+            { t: '0G Storage', d: 'Encrypted source artifact + Go merkle evidence.', href: storageUrl(LIVE.featured.paid.storageRoot) },
+            { t: 'ERC-7857', d: 'On-chain clerk identity. Not the payment rail.', href: addrUrl(LIVE.agentId) },
           ].map((s) => (
             <a key={s.t} href={s.href} className="rounded-[4px] border border-white/10 p-5 hover:border-white/25">
               <h3 className="font-display text-lg font-bold">{s.t}</h3>
