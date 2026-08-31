@@ -70,8 +70,12 @@ export function publicDecisionFromInvoiceRow(row: Record<string, unknown> | null
     storedDecision === 'auto-pay' || storedDecision === 'owner-review' || storedDecision === 'blocked'
       ? storedDecision
       : decide(flags, amountUnits, 200_000000n)
-  const why =
-    Array.isArray(storedWhy) && storedWhy.length ? storedWhy.map((line) => String(line)) : explainWhy(flags, decision)
+  const regenerated = explainWhy(flags, decision)
+  const why = flags.some((f) => f.severity === 'block')
+    ? regenerated
+    : Array.isArray(storedWhy) && storedWhy.length
+      ? storedWhy.map((line) => String(line))
+      : regenerated
   const nextAction = nextActionFor({
     status: String(row.status || ''),
     decision,

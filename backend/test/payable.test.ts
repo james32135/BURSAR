@@ -165,3 +165,18 @@ test('paid row proof of decision is PROOF with money moved', () => {
   assert.equal(d?.money.moved, true)
   assert.equal(d?.money.payTx, '0xpay')
 })
+
+test('blocked splice leads why even if stored why started with over-band', () => {
+  const d = publicDecisionFromInvoiceRow({
+    invoice_hash: '0xsplice',
+    status: 'blocked',
+    decision: 'blocked',
+    amount_units: '18000000000',
+    flags: [
+      { code: 'over-band0', severity: 'review', detail: 'amount 18000000000 exceeds band0' },
+      { code: 'invoice-splice', severity: 'block', detail: 'CT-1 was 1000 now 18000000000' },
+    ],
+    decision_why: ['Owner review: amount exceeds Band 0', 'Blocked: manipulated duplicate'],
+  })
+  assert.match(d!.why[0], /manipulated duplicate/i)
+})
