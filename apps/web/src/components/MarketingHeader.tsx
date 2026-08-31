@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { MagneticButton } from '@/components/MagneticButton'
 import { TelegramMark } from '@/components/TelegramMark'
 import { LIVE } from '@/lib/live'
-import { realDeskPath } from '@/lib/workspace'
 
 export function MarketingHeader({ light }: { light?: boolean }) {
   const ink = light ? 'text-[#18181b]' : 'text-[#fafafa]'
@@ -10,7 +9,6 @@ export function MarketingHeader({ light }: { light?: boolean }) {
   const bar = light
     ? 'border-black/10 bg-[#f4f4f5]/90'
     : 'border-white/10 bg-[#09090b]/90'
-  const desk = realDeskPath()
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b px-5 backdrop-blur-md md:px-10 ${bar} ${ink}`}
@@ -20,7 +18,7 @@ export function MarketingHeader({ light }: { light?: boolean }) {
       </Link>
       <nav className={`hidden items-center gap-7 text-sm md:flex ${muted}`}>
         <a href="/#og">0G stack</a>
-        <Link to={desk}>Desk</Link>
+        <Link to="/start">Desk</Link>
         <Link to="/verify">Verify</Link>
         <Link to="/agent">MCP / SDK</Link>
       </nav>
@@ -42,7 +40,7 @@ export function MarketingHeader({ light }: { light?: boolean }) {
         >
           Get started
         </Link>
-        <MagneticButton href={desk} className="h-9 bg-[#18181b] px-3 text-xs uppercase tracking-wide text-white">
+        <MagneticButton href="/start" className="h-9 bg-[#18181b] px-3 text-xs uppercase tracking-wide text-white">
           Open console
         </MagneticButton>
       </div>

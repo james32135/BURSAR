@@ -12,7 +12,6 @@ import { HeroDesk } from '@/components/HeroDesk'
 import { LIVE } from '@/lib/live'
 import { api } from '@/lib/api'
 import { addrUrl, shortHash, storageUrl, txUrl } from '@/lib/cn'
-import { realDeskPath } from '@/lib/workspace'
 import { TelegramMark } from '@/components/TelegramMark'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -182,7 +181,7 @@ export function Landing() {
             </a>
             <div className="hero-reveal mt-8 flex flex-wrap gap-3">
               <Link
-                to={realDeskPath()}
+                to="/start"
                 className="inline-flex h-11 items-center gap-2 rounded-[4px] bg-[#18181b] px-5 text-sm font-medium text-white"
               >
                 Try the desk <ArrowRight className="h-4 w-4" />
@@ -195,7 +194,7 @@ export function Landing() {
               </Link>
             </div>
             <p className="hero-reveal mt-4 max-w-md text-xs text-[#71717a]">
-              Opens the real owner desk. Connect the wallet, resume or bind your vault, then Attention. Not the shared DEMO vault.
+              Same as Get started. Owner wallet, resume or bind your vault, authorize the agent, then Open inbox. Not the shared DEMO vault.
             </p>
           </div>
           <div className="flex items-center justify-center bg-[#09090b] px-4 py-16 lg:min-h-[100dvh] lg:px-8">

@@ -18,7 +18,7 @@ The accounts-payable clerk for crypto companies on **0G Aristotle chain 16661**.
 
 Start here as a judge: open [/desk](https://bursarx.vercel.app/desk) with no wallet, then click **Paid** and **Splice blocked**. Reconstruct both from ChainScan and StorageScan.
 
-**Try the desk** and nav **Desk** open the real owner flow: [connect wallet → resume or bind vault → Attention](https://bursarx.vercel.app/start). They do not open the shared DEMO vault. DEMO is a labeled footer button on `/start` only.
+**Try the desk**, nav **Desk**, and **Open console** all open [Get started](https://bursarx.vercel.app/start): connect owner wallet, resume or bind the vault, authorize the agent. They do not open `/app` or the shared DEMO vault. DEMO is a labeled footer button on `/start` only.
 
 ---
 

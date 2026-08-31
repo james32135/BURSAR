@@ -39,10 +39,3 @@ export function isDemoMode() {
   if (ws) return Boolean(ws.demo)
   return localStorage.getItem('bursar.mode') === 'demo'
 }
-
-/** Real console or owner onboarding. Never the shared DEMO vault. */
-export function realDeskPath() {
-  const ws = loadWorkspace()
-  if (ws && !ws.demo && ws.agentToken) return '/app'
-  return '/start'
-}
