@@ -134,6 +134,7 @@ export function Policies() {
           <li>Changed recipient: this vendor's previous approved address is different.</li>
           <li>Over Band 0: amount exceeds the autonomous limit.</li>
           <li>Duplicate: this payable hash was already ingested or paid.</li>
+          <li>Invoice splice: same invoice number, different amount, new hash. Memory blocks. $0 moved.</li>
           <li>Paused / revoked / expired: the owner stopped the session.</li>
         </ul>
         <p className="mt-3 text-xs text-[var(--fg-muted)]">Open the payable for technical details: contract, session, hash, tx.</p>

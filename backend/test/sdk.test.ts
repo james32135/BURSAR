@@ -40,3 +40,13 @@ test('sdk chain-derived verify of production Band-0 pay', async () => {
   assert.equal(v.didMoneyMove, true)
   assert.equal(v.goProof?.ok, true)
 })
+
+test('sdk verify of final-audit Band-0 pay and splice block', async () => {
+  const paid = await client.verify('0xc8143fcb7db619ba4d67750faa728911433f2335731eb358d241c89123dcf0b1')
+  assert.equal(paid.status, 'VERIFIED')
+  assert.equal(paid.didMoneyMove, true)
+  assert.equal(paid.invoiceHash, '0xa03bf06708737f2882da12f77265216d7887d98b9c3d3d7941dc1ad36743db08')
+  const blocked = await client.verify('0xb3f63638b970cfbeadadd39d44ec1ad43a986cb8304a292b1182e6453b0c2a37')
+  assert.equal(blocked.status, 'BLOCKED')
+  assert.equal(blocked.didMoneyMove, false)
+})
